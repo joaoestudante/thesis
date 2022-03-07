@@ -1,0 +1,5 @@
+name,total_pairs,pairs_covered,pairs_occurring_once,pairs_occurring_more_than_once,ncommits,nfiles
+mayocat,1730730.0,55109,44510,10599,739,1861
+TNTConc.,175528.0,2870,2521,349,212,593
+petclinic,30135.0,9173,5949,3224,231,246
+sunrise-java,4686391.0,76378,64193,12185,1268,3062

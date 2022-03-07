@@ -59,7 +59,7 @@ total_data_pivoted <- tidyr::pivot_longer(data, cols=c('total_pairs', 'pairs_occ
 changing_pairs_pivoted <- tidyr::pivot_longer(data, cols=c('pairs_occurring_once', 'pairs_occurring_more_than_once'), names_to='variable', 
                           values_to="value")
 
-ggplot(data_pivoted, aes(x=name, y=value, fill=variable)) +
+ggplot(total_data_pivoted, aes(x=name, y=value, fill=variable)) +
   geom_bar(stat='identity', position='fill') + # change position to "dodge" for grouped bar chart
   ylab("Percentage of pairs that change together") +
   xlab("Project name") +
