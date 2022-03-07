@@ -26,7 +26,7 @@ class Repository:
             return
         spinner = Halo(text='Cloning repo...', spinner='dots')
         spinner.start()
-        git.repo.clone_from(self.link, self.path)
+        git.Repo.clone_from(self.link, self.path)
         spinner.succeed()
         return self
 
