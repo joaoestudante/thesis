@@ -1,9 +1,10 @@
 import os
 import git
-import sys
-import pydriller as pyd
-import pickle
-from halo import Halo # Super duper important spinner animation :)
+from halo import Halo  # Super duper important spinner animation :)
+from gitshellinterface import GitShellInterface
+import matplotlib.pyplot as plt
+
+plt.rcParams.update({'font.size': 3})
 
 
 class Repository:
@@ -17,6 +18,8 @@ class Repository:
         self.location = location
         self.link = link
         self.path = f"{self.location}/{self.name}"
+        self.shell_interface = GitShellInterface(self.path)
+        self.rename_history = None
 
     def clone(self):
         """
@@ -30,59 +33,40 @@ class Repository:
         spinner.succeed()
         return self
 
-    def _optimize_changed_files(self, changed_files):
-        efficient_file_sets = []
-        file_names = {}
-        file_counter = 0
-        for file_set in changed_files:
-            temp = []
-            for file in file_set:
-                if '.java' in file:
-                    if file not in file_names:
-                        file_names[file] = file_counter
-                        file_counter += 1
-                    temp.append(sys.intern(file))
-            if len(temp) > 0:
-                efficient_file_sets.append(temp)
-        return efficient_file_sets, file_names
-
-    def get_changed_files(self, starting_commit = None, end_commit = None):
+    def get_current_files(self):
         """
-        Returns a list containing a list for each commit with the modified files, as well
-        as the unique files.
+        Returns: All the files found in the repository's directory, in an easy to test/parse format.
+        """
+        all_files = os.popen(f"cd {self.path} && find . -print").readlines()
+        return [f[2:].replace("\n", "") for f in all_files]
 
-        :param starting_commit: SHA of the earliest commit to consider
-        :param end_commit: SHA of the latest commit to consider
-        :return: the list of lists with the modified files, and the unique files
+    def get_changed_files(self, extensions, starting_commit=None, end_commit=None):
+        """Returns the files changed per commit with extension in "extensions".
+
+        Args:
+            extensions (: Extensions to be included in the files
+            starting_commit (): The hash of the first commit to analyze. Defaults to None.
+            end_commit (): The hash of the last commit to analyze. Defaults to None.
+
+        Returns:
+            All the files that changed in the repository's history, whose extension is in the "extensions" argument, as
+            well as all the unique filenames found.
         """
 
-        try:
-            with open(f"files-changed/{self.name}-files.pkl", "rb") as p:
-                file_sets = pickle.load(p)
-                return self._optimize_changed_files(file_sets)
-                
-        except FileNotFoundError:
-            print("No previous file sets saved, creating them.")
-
-        if not os.path.isdir("files-changed"):
-            os.mkdir("files-changed")
-        
         file_sets = []
-        pydriller_repo = pyd.Repository(self.path, num_workers=8)
-        spinner = Halo(text='Extracting files changed...', spinner='dots')
-        spinner.start()
-        for commit in pydriller_repo.traverse_commits():
-             # 1h:30 para o Fénix
-            #file_sets.append([sys.intern(c.filename) for c in commit.modified_files])
+        file_names = []
+        # spinner = Halo(text='Extracting files changed...', spinner='dots')
+        # spinner.start()
+        for commit_hash in self.shell_interface.traverse_commits():
+            changed_files, changed_files_names = self.shell_interface.get_files_in_commit(commit_hash, extensions)
+            if len(changed_files) > 0:
+                file_sets.append(changed_files)
+                file_names += changed_files_names
 
-             # 5m para o Fénix
-            file_sets.append(os.popen(f"cd {self.path} && git diff-tree --no-commit-id --name-only -r {commit.hash}").read().split())
+        self.rename_history = self.shell_interface.rename_history
 
-            # 2m:38 para o Fénix se for pure bash
+        # spinner.succeed()
+        return file_sets, set(file_names)
 
-        with open(f"files-changed/{self.name}-files.pkl", "wb") as p:
-            pickle.dump(file_sets, p)
-        
-        spinner.succeed()
-        
-        return self._optimize_changed_files(file_sets)
+    def get_latest_filename(self, filename):
+        return self.rename_history.latest_filename(filename)
