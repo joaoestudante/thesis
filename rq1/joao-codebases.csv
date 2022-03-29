@@ -1,5 +1,4 @@
 codebase,repository_link
-fenixedu-academic,https://github.com/FenixEdu/fenixedu-academic
 edition,https://github.com/socialsoftware/edition
 irida,https://github.com/phac-nml/irida.git
 webofneeds,https://github.com/researchstudio-sat/webofneeds.git
@@ -9,3 +8,4 @@ FengHuang,https://github.com/TimYi/FengHuang.git
 hexie,https://github.com/linknabor/hexie.git
 quizzes-tutor,https://github.com/socialsoftware/quizzes-tutor.git
 market-manage,https://github.com/JoleneOL/market-manage.git
+fenixedu-academic,https://github.com/FenixEdu/fenixedu-academic
