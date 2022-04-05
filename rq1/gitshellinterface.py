@@ -81,10 +81,11 @@ class GitShellInterface:
         self.codebase_folder = codebase_folder
         self.rename_history = RenameHistory()
 
-    def traverse_commits(self):
+    def traverse_commits(self, end_commit):
         all_commits = os.popen(f"cd {self.codebase_folder} && git log --pretty=format:'%H' --reverse").readlines()
         for commit_hash in all_commits:
             yield commit_hash.replace("\n", "")
+
 
     def execute_get_files_command(self, commit_hash: str) -> list[str] or []:
         """
@@ -115,7 +116,7 @@ class GitShellInterface:
                              f"4b825dc642cb6eb9a060e54bf8d69288fbee4904 {commit_hash}").readlines()
         else:
             lines = output.split("\n")[:-1]
-            if "inexact rename detection was skipped" in output:
+            if "rename detection" in output:
                 # FIXME: We should probably do something smarter here. Refer to issue #1 on GitHub.
                 print("Skipped! Too many files in commit...")
                 return []

@@ -147,12 +147,13 @@ def main():
         os.mkdir(cloning_location)
     
     repos = pd.read_csv("joao-codebases.csv")
-    for repo_name, repo_link in zip(repos["codebase"], repos["repository_link"]):
+    print(repos)
+    for repo_name, repo_link, max_commit_hash in zip(repos["codebase"], repos["repository_link"], repos["max_commit_hash"]):
         print(f"Evaluating {repo_name}")
         t0 = time.time()
         repo = Repository(repo_name, cloning_location, repo_link)
         repo.clone()
-        file_changes, file_names = repo.get_changed_files([".java"])
+        file_changes, file_names = repo.get_changed_files([".java"], end_commit=max_commit_hash)
         spinner = Halo(text='Converting changes...', spinner='dots')
         spinner.start()
         result = convert_changes_to_json(file_changes, file_names, repo)

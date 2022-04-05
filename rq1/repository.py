@@ -57,12 +57,15 @@ class Repository:
         file_names = []
         # spinner = Halo(text='Extracting files changed...', spinner='dots')
         # spinner.start()
-        for commit_hash in self.shell_interface.traverse_commits():
+        last_commit_hash = None
+        for commit_hash in self.shell_interface.traverse_commits(end_commit):
             changed_files, changed_files_names = self.shell_interface.get_files_in_commit(commit_hash, extensions)
             if len(changed_files) > 0:
                 file_sets.append(changed_files)
                 file_names += changed_files_names
-
+            if commit_hash == end_commit:
+                print("Breaking traverse...")
+                break
         self.rename_history = self.shell_interface.rename_history
 
         # spinner.succeed()
