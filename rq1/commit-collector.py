@@ -58,6 +58,27 @@ def process_unresolved_renames(result: dict, repo: Repository) -> None:
         result[k] = v
 
 
+def remove_non_entities(result: dict, repo: Repository, file_names: list[str]):
+    """
+    This method removes from the result dict any files that are not entities. If an entity information file could not
+    be found, the user is notified, and no changes are made.
+    Args:
+        file_names ():
+        result ():
+        repo ():
+    """
+
+    entity_names = repo.get_entity_filenames()
+    print(f"entities: {entity_names}")
+    if len(entity_names) == 0:
+        return
+
+    for file in file_names:
+        if os.path.basename(file) not in entity_names:
+            process_delete(file, result)
+
+
+
 def delete_files_not_in_repo(result: dict, repo: Repository, file_names: list[str]) -> None:
     """
     This method deletes from the result dictionary all the files that are not currently in the cloned repository.
@@ -130,9 +151,12 @@ def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: l
     for file in deleted_files:
         process_delete(file, result)
 
-    # Finally, we ensure that any renaming which might've occurred in commits with more than 100 changed files
+    # We ensure that any renaming which might've occurred in commits with more than 100 changed files
     # is properly stored.
     process_unresolved_renames(result, repo)
+
+    # Any non-entity files are removed from the result.
+    remove_non_entities(result, repo, file_names)
 
     # The method below deletes any information about files not currently in the repo. It's an alternative approach to
     # the one employed above, which might warrant some experimentation to see if results differ too much.
@@ -145,13 +169,16 @@ def main():
     cloning_location = "../codebases"
     if not os.path.isdir(cloning_location):
         os.mkdir(cloning_location)
+
+    data_output_location = "codebases-data/"
+    if not os.path.isdir(data_output_location):
+        os.mkdir(data_output_location)
     
     repos = pd.read_csv("joao-codebases.csv")
-    print(repos)
     for repo_name, repo_link, max_commit_hash in zip(repos["codebase"], repos["repository_link"], repos["max_commit_hash"]):
         print(f"Evaluating {repo_name}")
         t0 = time.time()
-        repo = Repository(repo_name, cloning_location, repo_link)
+        repo = Repository(repo_name, cloning_location, repo_link, data_output_location)
         repo.clone()
         file_changes, file_names = repo.get_changed_files([".java"], end_commit=max_commit_hash)
         spinner = Halo(text='Converting changes...', spinner='dots')

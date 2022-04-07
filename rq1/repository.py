@@ -1,4 +1,7 @@
+import json
 import os
+import pickle
+
 import git
 from halo import Halo  # Super duper important spinner animation :)
 from gitshellinterface import GitShellInterface
@@ -13,13 +16,14 @@ class Repository:
     for all commits, etc.
     """
 
-    def __init__(self, name, location, link):
+    def __init__(self, name, location, link, data_output_location):
         self.name = name
         self.location = location
         self.link = link
         self.path = f"{self.location}/{self.name}"
         self.shell_interface = GitShellInterface(self.path)
         self.rename_history = None
+        self.data_output_location = data_output_location
 
     def clone(self):
         """
@@ -55,9 +59,15 @@ class Repository:
 
         file_sets = []
         file_names = []
-        # spinner = Halo(text='Extracting files changed...', spinner='dots')
-        # spinner.start()
-        last_commit_hash = None
+        if os.path.exists(f"files-changed/{self.name}.pkl"):
+            with open(f"files-changed/{self.name}.pkl", "rb") as f:
+                file_sets, file_names, rename_history = pickle.load(f)
+                self.rename_history = rename_history
+                return file_sets, file_names
+
+        spinner = Halo(text='Extracting files changed...', spinner='dots')
+        spinner.start()
+
         for commit_hash in self.shell_interface.traverse_commits(end_commit):
             changed_files, changed_files_names = self.shell_interface.get_files_in_commit(commit_hash, extensions)
             if len(changed_files) > 0:
@@ -68,8 +78,27 @@ class Repository:
                 break
         self.rename_history = self.shell_interface.rename_history
 
-        # spinner.succeed()
+        with open(f"files-changed/{self.name}.pkl", "wb") as f:
+            pickle.dump((file_sets, file_names, self.rename_history), f)
+
+        spinner.succeed()
+
         return file_sets, set(file_names)
 
     def get_latest_filename(self, filename):
         return self.rename_history.latest_filename(filename)
+
+    def get_entity_filenames(self):
+        """
+        This method parses the filenames from the IDtoEntity file and returns them with a '.java' suffix.
+        Returns:
+
+        """
+        files_in_output_folder = os.listdir(f"{self.data_output_location}{self.name}/")
+        for file in files_in_output_folder:
+            if "IDToEntity" in file:
+                with open(f"{self.data_output_location}{self.name}/{file}", "r") as f:
+                    id_to_entity = json.load(f)
+                    return [f"{entity}.java" for entity in list(id_to_entity.values())]
+        print(f"No IDToEntity file was found in {self.data_output_location}{self.name}/")
+        return []
