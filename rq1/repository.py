@@ -24,6 +24,7 @@ class Repository:
         self.shell_interface = GitShellInterface(self.path)
         self.rename_history = None
         self.data_output_location = data_output_location
+        self.extensions = []
 
     def clone(self):
         """
@@ -42,7 +43,11 @@ class Repository:
         Returns: All the files found in the repository's directory, in an easy to test/parse format.
         """
         all_files = os.popen(f"cd {self.path} && find . -print").readlines()
-        return [f[2:].replace("\n", "") for f in all_files]
+        current_files_extension = []
+        for file in all_files:
+            if os.path.splitext(file)[1].replace("\n", "") in self.extensions:
+                current_files_extension.append(file[2:].replace("\n", ""))
+        return current_files_extension
 
     def get_changed_files(self, extensions, starting_commit=None, end_commit=None):
         """Returns the files changed per commit with extension in "extensions".
@@ -56,7 +61,7 @@ class Repository:
             All the files that changed in the repository's history, whose extension is in the "extensions" argument, as
             well as all the unique filenames found.
         """
-
+        self.extensions = extensions
         file_sets = []
         file_names = []
         if os.path.exists(f"files-changed/{self.name}.pkl"):
@@ -102,3 +107,7 @@ class Repository:
                     return [f"{entity}.java" for entity in list(id_to_entity.values())]
         print(f"No IDToEntity file was found in {self.data_output_location}{self.name}/")
         return []
+
+    def previous_filenames(self, filename: str) -> list[str]:
+        previous_names = self.shell_interface.get_previous_filenames(filename)
+        return previous_names.split("\n")[1:-1]

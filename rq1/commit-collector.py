@@ -29,33 +29,31 @@ def process_delete(file: str, result: dict) -> None:
             result[k] = [x for x in v if x != file]  # Remove all occurrences of this filename in the list
 
 
-def process_unresolved_renames(result: dict, repo: Repository) -> None:
+def process_renames(result: dict, repo: Repository) -> None:
     """
     This method analyzes and edits the result dictionary to ensure that all keys and values are the most up-to-date
-    filenames. It exists because sometimes renames occur in commits that are ignored.
+    filenames.
     Args:
         result (): Dictionary containing the non-deleted filenames as keys, and the filenames they changed with
         as values.
         repo (): Repository object representing the codebase.
     """
-    keys_to_remove = []
-    keys_to_add = []
-    elements_to_add = []
-    for k, v in result.items():
-        k_latest_filename = repo.get_latest_filename(k)
-        if k_latest_filename != k:
-            # We can't change the dict size during iteration, so we store the info we want to add and delete after
-            # this loop
-            keys_to_add.append(k_latest_filename)
-            elements_to_add.append([repo.get_latest_filename(x) for x in v])
-            keys_to_remove.append(k)
-        else:
-            result[k] = [repo.get_latest_filename(x) for x in v]
+    all_filenames = repo.get_current_files()
+    for filename in all_filenames:
+        previous_filenames = repo.previous_filenames(filename)
+        for previous_filename in previous_filenames:
+            try:
+                previous_filename_data = result.pop(previous_filename)
+                result[filename] += previous_filename_data
+            except KeyError:
+                pass
 
-    for k in keys_to_remove:
-        result.pop(k)
-    for k, v in zip(keys_to_add, elements_to_add):
-        result[k] = v
+    for filename in all_filenames:
+        previous_filenames = repo.previous_filenames(filename)
+        for previous_filename in previous_filenames:
+            for k in result.keys():
+                if previous_filename in result[k]:
+                    result[k] = [x if x != previous_filename else filename for x in result[k]]
 
 
 def remove_non_entities(result: dict, repo: Repository, file_names: list[str]):
@@ -76,7 +74,6 @@ def remove_non_entities(result: dict, repo: Repository, file_names: list[str]):
     for file in file_names:
         if os.path.basename(file) not in entity_names:
             process_delete(file, result)
-
 
 
 def delete_files_not_in_repo(result: dict, repo: Repository, file_names: list[str]) -> None:
@@ -128,7 +125,7 @@ def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: l
                 new_change = change[:]
                 new_change.remove(file)
                 # result[file] += [file_names[x] for x in new_change]
-                result[repo.get_latest_filename(file.filename())] += [repo.get_latest_filename(x.filename()) for x in new_change]
+                result[file.filename()] += [x.filename() for x in new_change]
 
         # Even if we don't want to consider this change for analysis purposes, it might contain information about
         # deletions and modifications that is necessary to keep.
@@ -143,7 +140,7 @@ def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: l
     # In these cases, we can assume that the file is not related to any others, but it should still exist
     # in the list so that the clustering works correctly.
     for file in file_names:
-        if repo.get_latest_filename(file) not in list(result.keys()):
+        if file not in list(result.keys()):
             result[file] = []
 
     # Any file that was deleted in the repository history, and was never added or modified after its deletion should be
@@ -153,7 +150,7 @@ def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: l
 
     # We ensure that any renaming which might've occurred in commits with more than 100 changed files
     # is properly stored.
-    process_unresolved_renames(result, repo)
+    process_renames(result, repo)
 
     # Any non-entity files are removed from the result.
     remove_non_entities(result, repo, file_names)
@@ -173,9 +170,10 @@ def main():
     data_output_location = "codebases-data/"
     if not os.path.isdir(data_output_location):
         os.mkdir(data_output_location)
-    
+
     repos = pd.read_csv("joao-codebases.csv")
-    for repo_name, repo_link, max_commit_hash in zip(repos["codebase"], repos["repository_link"], repos["max_commit_hash"]):
+    for repo_name, repo_link, max_commit_hash in zip(repos["codebase"], repos["repository_link"],
+                                                     repos["max_commit_hash"]):
         print(f"Evaluating {repo_name}")
         t0 = time.time()
         repo = Repository(repo_name, cloning_location, repo_link, data_output_location)
@@ -193,7 +191,7 @@ def main():
             json.dump(result, sort_keys=True, indent=2, separators=(',', ': '), fp=outfile)
 
         t1 = time.time()
-        print(f"Took {t1-t0} seconds to run.")
+        print(f"Took {t1 - t0} seconds to run.")
 
         # with open(f"codebases-commit-json/{repo_name}-file-id.json", "w") as outfile:
         #     # file_names contains file -> id, but we want to save the reverse.

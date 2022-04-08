@@ -155,3 +155,15 @@ class GitShellInterface:
                 files.append(changed_file)
                 names.append(changed_file.filename())
         return files, names
+
+    def get_previous_filenames(self, filename):
+        command = f"cd {self.codebase_folder} && git log --follow -p --name-only --oneline -- {filename} | grep -v '^[" \
+                  f"0-9a-h]* ' | uniq "
+        try:
+            output = subprocess.check_output(
+                command, stderr=subprocess.STDOUT, shell=True, timeout=3,
+                universal_newlines=True)
+            return output
+        except subprocess.CalledProcessError:
+            print("Error when retrieving previous filenames.")
+            return []
