@@ -100,8 +100,6 @@ def delete_files_not_in_repo(result: dict, repo: Repository, file_names: list[st
                 if file_name in v:
                     result[k] = [x for x in v if
                                  x != file_name]  # Remove all occurrences of this filename in the list
-        if file_name in all_files and file_name not in result.keys():
-            result[file_name] = []
 
 
 def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: list[str], repo: Repository) -> dict:
@@ -160,7 +158,7 @@ def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: l
 
     # The method below deletes any information about files not currently in the repo. It's an alternative approach to
     # the one employed above, which might warrant some experimentation to see if results differ too much.
-    # delete_files_not_in_repo(result, repo, file_names)
+    delete_files_not_in_repo(result, repo, file_names)
 
     return result
 
@@ -176,6 +174,8 @@ def main():
     
     repos = pd.read_csv("joao-codebases.csv")
     for repo_name, repo_link, max_commit_hash in zip(repos["codebase"], repos["repository_link"], repos["max_commit_hash"]):
+        if repo_name != "quizzes-tutor":
+            continue
         print(f"Evaluating {repo_name}")
         t0 = time.time()
         repo = Repository(repo_name, cloning_location, repo_link, data_output_location)
