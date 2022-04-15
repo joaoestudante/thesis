@@ -25,7 +25,7 @@ class Repository:
         self.rename_history = None
         self.data_output_location = data_output_location
 
-    def clone(self):
+    def clone(self, max_commit_hash: str = None):
         """
         Clones the repository, if it doesn't exist already.
         """
@@ -33,7 +33,11 @@ class Repository:
             return
         spinner = Halo(text='Cloning repo...', spinner='dots')
         spinner.start()
-        git.Repo.clone_from(self.link, self.path)
+        if max_commit_hash is None:
+            git.Repo.clone_from(self.link, self.path)
+            return self
+        repo = git.Repo.clone_from(self.link, self.path, no_checkout=True)
+        repo.git.checkout(max_commit_hash)
         spinner.succeed()
         return self
 

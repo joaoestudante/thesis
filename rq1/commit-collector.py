@@ -67,15 +67,20 @@ def remove_non_entities(result: dict, repo: Repository, file_names: list[str]):
         result ():
         repo ():
     """
-
+    entities_only_result = {}
     entity_names = repo.get_entity_filenames()
-    print(f"entities: {entity_names}")
     if len(entity_names) == 0:
         return
 
+    for k in result.keys():
+        if os.path.basename(k) in entity_names:
+            entities_only_result[k] = result[k]
+
     for file in file_names:
         if os.path.basename(file) not in entity_names:
-            process_delete(file, result)
+            process_delete(file, entities_only_result)
+
+    return entities_only_result
 
 
 
@@ -120,6 +125,9 @@ def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: l
     result = defaultdict(list)
     deleted_files: list[str] = []
 
+    spinner = Halo(text='Parsing changes...', spinner='dots')
+    spinner.start()
+
     for changed_index, change in enumerate(file_changes):
         if 1 < len(change) < 100:
             for file in change:
@@ -144,21 +152,37 @@ def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: l
         if repo.get_latest_filename(file) not in list(result.keys()):
             result[file] = []
 
+    spinner.succeed()
+
+    spinner = Halo(text='Deleting files...', spinner='dots')
+    spinner.start()
+
     # Any file that was deleted in the repository history, and was never added or modified after its deletion should be
     # deleted from the result.
     for file in deleted_files:
         process_delete(file, result)
 
+    spinner.succeed()
+
+    spinner = Halo(text='Processing renames...', spinner='dots')
+    spinner.start()
     # We ensure that any renaming which might've occurred in commits with more than 100 changed files
     # is properly stored.
     process_unresolved_renames(result, repo)
+    spinner.succeed()
 
+    spinner = Halo(text='Deleting non-entities...', spinner='dots')
+    spinner.start()
     # Any non-entity files are removed from the result.
-    remove_non_entities(result, repo, file_names)
+    result = remove_non_entities(result, repo, file_names)
+    spinner.succeed()
 
     # The method below deletes any information about files not currently in the repo. It's an alternative approach to
     # the one employed above, which might warrant some experimentation to see if results differ too much.
+    spinner = Halo(text='Deleting files not in repo...', spinner='dots')
+    spinner.start()
     delete_files_not_in_repo(result, repo, file_names)
+    spinner.succeed()
 
     return result
 
@@ -174,17 +198,12 @@ def main():
     
     repos = pd.read_csv("joao-codebases.csv")
     for repo_name, repo_link, max_commit_hash in zip(repos["codebase"], repos["repository_link"], repos["max_commit_hash"]):
-        if repo_name != "quizzes-tutor":
-            continue
         print(f"Evaluating {repo_name}")
         t0 = time.time()
         repo = Repository(repo_name, cloning_location, repo_link, data_output_location)
-        repo.clone()
+        repo.clone(max_commit_hash)
         file_changes, file_names = repo.get_changed_files([".java"], end_commit=max_commit_hash)
-        spinner = Halo(text='Converting changes...', spinner='dots')
-        spinner.start()
         result = convert_changes_to_json(file_changes, file_names, repo)
-        spinner.succeed()
 
         if not os.path.isdir(f"codebases-data/{repo_name}"):
             os.mkdir(f"codebases-data/{repo_name}")
