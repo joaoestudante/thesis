@@ -122,7 +122,19 @@ class GitShellInterface:
                 return []
         return lines
 
-    def get_files_in_commit(self, commit_hash: str, extensions: list[str]):
+
+    def execute_get_author_command(self, commit_hash: str):
+        command = f"cd {self.codebase_folder} && git show -s --pretty=%an {commit_hash}"
+        try:
+            output = subprocess.check_output(
+                command, stderr=subprocess.STDOUT, shell=True, timeout=3,
+                universal_newlines=True)
+        except subprocess.CalledProcessError:
+            return None
+        return output.replace("\n", "")
+
+
+    def get_files_in_commit_and_author(self, commit_hash: str, extensions: list[str]):
         """
         Parses the lines from the shell command to create objects with the correct properties.
         Args:
@@ -135,7 +147,7 @@ class GitShellInterface:
         """
         lines = self.execute_get_files_command(commit_hash)
         if not lines:
-            return [], []
+            return [], [], ""
         files = []
         names = []
         for line in lines:
@@ -154,4 +166,5 @@ class GitShellInterface:
 
                 files.append(changed_file)
                 names.append(changed_file.filename())
-        return files, names
+        author = self.execute_get_author_command(commit_hash)
+        return files, names, author

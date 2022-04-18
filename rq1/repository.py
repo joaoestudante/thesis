@@ -1,6 +1,8 @@
 import json
 import os
 import pickle
+import math
+from collections import defaultdict
 
 import git
 from halo import Halo  # Super duper important spinner animation :)
@@ -25,7 +27,7 @@ class Repository:
         self.rename_history = None
         self.data_output_location = data_output_location
 
-    def clone(self, max_commit_hash: str = None):
+    def clone(self, max_commit_hash: float = math.nan):
         """
         Clones the repository, if it doesn't exist already.
         """
@@ -33,7 +35,7 @@ class Repository:
             return
         spinner = Halo(text='Cloning repo...', spinner='dots')
         spinner.start()
-        if max_commit_hash is None:
+        if math.isnan(max_commit_hash):
             git.Repo.clone_from(self.link, self.path)
             return self
         repo = git.Repo.clone_from(self.link, self.path, no_checkout=True)
@@ -63,31 +65,33 @@ class Repository:
 
         file_sets = []
         file_names = []
+        authors = []
         if os.path.exists(f"files-changed/{self.name}.pkl"):
             with open(f"files-changed/{self.name}.pkl", "rb") as f:
-                file_sets, file_names, rename_history = pickle.load(f)
+                file_sets, file_names, authors, rename_history = pickle.load(f)
                 self.rename_history = rename_history
-                return file_sets, file_names
+                return file_sets, file_names, authors
 
         spinner = Halo(text='Extracting files changed...', spinner='dots')
         spinner.start()
 
         for commit_hash in self.shell_interface.traverse_commits(end_commit):
-            changed_files, changed_files_names = self.shell_interface.get_files_in_commit(commit_hash, extensions)
+            changed_files, changed_files_names, author = self.shell_interface.get_files_in_commit_and_author(commit_hash, extensions)
             if len(changed_files) > 0:
                 file_sets.append(changed_files)
                 file_names += changed_files_names
+                authors.append(author)
             if commit_hash == end_commit:
                 print("Breaking traverse...")
                 break
         self.rename_history = self.shell_interface.rename_history
 
         with open(f"files-changed/{self.name}.pkl", "wb") as f:
-            pickle.dump((file_sets, file_names, self.rename_history), f)
+            pickle.dump((file_sets, file_names, authors, self.rename_history), f)
 
         spinner.succeed()
 
-        return file_sets, set(file_names)
+        return file_sets, set(file_names), authors
 
     def get_latest_filename(self, filename):
         return self.rename_history.latest_filename(filename)
