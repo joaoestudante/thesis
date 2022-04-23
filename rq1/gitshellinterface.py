@@ -59,6 +59,9 @@ class ChangedFile:
         else:
             return self.filename()
 
+    def __repr__(self):
+        return self.__str__()
+
 
 class RenameHistory:
     def __init__(self):
@@ -119,12 +122,14 @@ class GitShellInterface:
             if "rename detection" in output:
                 # FIXME: We should probably do something smarter here. Refer to issue #1 on GitHub.
                 print("Skipped! Too many files in commit...")
+                print("Actual output is: ")
+                print(output)
                 return []
         return lines
 
 
     def execute_get_author_command(self, commit_hash: str):
-        command = f"cd {self.codebase_folder} && git show -s --pretty=%an {commit_hash}"
+        command = f"cd {self.codebase_folder} && git show -s --pretty=%ae {commit_hash}"
         try:
             output = subprocess.check_output(
                 command, stderr=subprocess.STDOUT, shell=True, timeout=3,
