@@ -130,13 +130,17 @@ def entity_to_id(entity_name, translation_file):
 def convert_strings_to_ids(result, authors, repo):
     new_result = {}
     new_authors = {}
-    with open(f"{repo.data_output_location}/{repo.name}/{repo.name}_entityToID.json", "r") as f:
-        id_to_entity = json.load(f)
-        for k, v in result.items():
-            new_result[entity_to_id(k, id_to_entity)] = [entity_to_id(entity, id_to_entity) for entity in v]
-        for k in authors.keys():
-            new_authors[entity_to_id(k, id_to_entity)] = authors[k]
-    return new_result, new_authors
+    for file in os.listdir(f"{repo.data_output_location}/{repo.name}"):
+        if "entityToID.json" in file:
+            with open(f"{repo.data_output_location}/{repo.name}/{file}", "r") as f:
+                id_to_entity = json.load(f)
+                for k, v in result.items():
+                    new_result[entity_to_id(k, id_to_entity)] = [entity_to_id(entity, id_to_entity) for entity in v]
+                for k in authors.keys():
+                    new_authors[entity_to_id(k, id_to_entity)] = authors[k]
+            return new_result, new_authors
+    print("Entity to ID file was not found.")
+    return result, authors
 
 
 def convert_changes_to_json(file_changes: list[list[ChangedFile]], file_names: list[str], authors: list[str],
