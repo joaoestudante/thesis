@@ -74,7 +74,7 @@ def main():
     repo_count = 0
     for repo_name in repos["codebase"]:
         print(repo_name)
-        with open(f"codebases-data/{repo_name}/{repo_name}-commit-no-renames.json", "r") as d:
+        with open(f"codebases-data/{repo_name}/{repo_name}-commit-v3.json", "r") as d:
             commit_data = json.load(d)
 
         print("Building matrix")
@@ -82,7 +82,7 @@ def main():
         print("Cutting")
         decomposition = generate_decomposition(matrix, 4)
 
-        with open(f"codebases-data/{repo_name}/{repo_name}-author-no-renames.json", "r") as d:
+        with open(f"codebases-data/{repo_name}/{repo_name}-author-v3.json", "r") as d:
             authors_data = json.load(d)
 
         print("Counting metrics")

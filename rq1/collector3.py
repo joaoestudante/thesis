@@ -81,17 +81,20 @@ class Repository:
         self.url = url
         self.cloning_location = cloning_location
         self.path = f"{self.cloning_location}/{self.name}"
-        self.pydriller_repo = Git(self.path)
+        self.pydriller_repo = None
         self.shell_commands = ShellCommands(self.path)
         self.authorized_extensions = [".java", ".py", ".rb"]
 
     def clone(self):
         if os.path.isdir(self.path):
+            self.pydriller_repo = Git(self.path)
             return self
+        os.mkdir(self.path)
         git.Repo.clone_from(self.url, self.path)
+        self.pydriller_repo = Git(self.path)
         return self
 
-    def get_full_history(self):
+    def get_full_history(self, n_commits):
         all_commits = list(self.pydriller_repo.get_list_commits())
         history = []
         print("Parsing all commits")
@@ -113,6 +116,8 @@ class Repository:
                     parsed_files.append(ChangedFile(old_path, new_path, change_type))
             if len(parsed_files) > 0:
                 history.append(ChangeEvent(parsed_files, commit.committer_date, commit.author.email, commit.hash))
+            if i == n_commits:
+                break
         return history
 
     def clear_deleted_files(self, full_history):
@@ -197,14 +202,14 @@ def main():
         os.mkdir(data_output_location)
 
     repo_data = pd.read_csv("mazlami-codebases.csv")
-    for repo_name, repo_link in zip(repo_data["codebase"], repo_data["repository_link"]):
+    for repo_name, repo_link, n_commits in zip(repo_data["codebase"], repo_data["repository_link"], repo_data["n_commits"]):
         print("CHECKING " + repo_name)
         repository = Repository(repo_name, repo_link, cloning_location).clone()
         # if os.path.isfile(f"files-changed/{repo_name}v3.pkl"):
         #     with open(f"files-changed/{repo_name}v3.pkl", "rb") as f:
         #         full_history = pickle.load(f)
         # else:
-        full_history = repository.get_full_history()
+        full_history = repository.get_full_history(n_commits)
         with open(f"files-changed/{repo_name}v3.pkl", "wb") as h:
             pickle.dump(full_history, h)
         history_with_renames_fixed = repository.correct_renamed_files(full_history)
@@ -212,6 +217,10 @@ def main():
         logical_coupling_result = get_logical_coupling(cleaned_history)
         authors_result = get_authors_result(cleaned_history)
         repository.check_files(logical_coupling_result)
+
+        if not os.path.isdir(f"codebases-data/{repo_name}/"):
+            os.mkdir(f"codebases-data/{repo_name}/")
+
         with open(f"codebases-data/{repo_name}/{repo_name}-commit-v3.json", "w") as outfile:
             json.dump(logical_coupling_result, sort_keys=True, indent=2, separators=(',', ': '), fp=outfile)
         with open(f"codebases-data/{repo_name}/{repo_name}-author-v3.json", "w") as outfile:
