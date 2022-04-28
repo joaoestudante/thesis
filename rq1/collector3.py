@@ -128,15 +128,14 @@ class Repository:
                 if file.change_type == "D":
                     deleted_filenames.add(file.old_path)
         print(f"{len(deleted_filenames)} were deleted in the history. Clearing them.")
-        # If a file is renamed, this will only delete the latest rename. But the previous ones should also be deleted...
-        # Or maybe not? If they should, we can basically reverse the find_last_name, by searching from the commit to 0,
-        # gathering all files, and deleting at the end
+
         for file in deleted_filenames:
             for event in full_history:
                 for entry in event.changed_diffs:
                     if entry.old_path == file or entry.new_path == file or entry.future_path == file:
                         event.delete_file(entry)
         print("Cleared.")
+
         return full_history
 
     def correct_renamed_files(self, history):
@@ -205,18 +204,18 @@ def main():
     for repo_name, repo_link, n_commits in zip(repo_data["codebase"], repo_data["repository_link"], repo_data["n_commits"]):
         print("CHECKING " + repo_name)
         repository = Repository(repo_name, repo_link, cloning_location).clone()
-        # if os.path.isfile(f"files-changed/{repo_name}v3.pkl"):
-        #     with open(f"files-changed/{repo_name}v3.pkl", "rb") as f:
-        #         full_history = pickle.load(f)
-        # else:
-        full_history = repository.get_full_history(n_commits)
-        with open(f"files-changed/{repo_name}v3.pkl", "wb") as h:
-            pickle.dump(full_history, h)
+        if os.path.isfile(f"files-changed/{repo_name}v3.pkl"):
+            with open(f"files-changed/{repo_name}v3.pkl", "rb") as f:
+                full_history = pickle.load(f)
+        else:
+            full_history = repository.get_full_history(n_commits)
+            with open(f"files-changed/{repo_name}v3.pkl", "wb") as h:
+                pickle.dump(full_history, h)
         history_with_renames_fixed = repository.correct_renamed_files(full_history)
         cleaned_history = repository.clear_deleted_files(history_with_renames_fixed)
         logical_coupling_result = get_logical_coupling(cleaned_history)
         authors_result = get_authors_result(cleaned_history)
-        repository.check_files(logical_coupling_result)
+        # repository.check_files(logical_coupling_result)
 
         if not os.path.isdir(f"codebases-data/{repo_name}/"):
             os.mkdir(f"codebases-data/{repo_name}/")
