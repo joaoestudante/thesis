@@ -27,8 +27,8 @@ def generate_similarity_matrix(commit_data):
     return np.array(matrix)
 
 
-def generate_decomposition(matrix, n_clusters):
-    hierarch = hierarchy.linkage(matrix, 'average')
+def generate_decomposition(matrix, n_clusters, method):
+    hierarch = hierarchy.linkage(matrix, method)
     fcluster_clusters = hierarchy.fcluster(hierarch, n_clusters, criterion='maxclust')
     clusters = {}
     for i in range(len(fcluster_clusters)):
@@ -67,11 +67,13 @@ def compute_average_contributors_per_microservice(decomposition, commit_data, au
 
 
 def main():
-    repos = pd.read_csv("mazlami-codebases.csv")
+    repos = pd.read_csv("joao-codebases.csv")
     tsr_values = []
-    coupling_type = []
+    linkage_type = []
     data = []
     repo_count = 0
+
+    linkage_types = ['single', 'complete', 'average', 'weighted', 'centroid', 'median', 'ward']
     for repo_name in repos["codebase"]:
         print(repo_name)
         with open(f"codebases-data/{repo_name}/{repo_name}-commit-v3.json", "r") as d:
@@ -79,26 +81,27 @@ def main():
 
         print("Building matrix")
         matrix = generate_similarity_matrix(commit_data)
-        print("Cutting")
-        decomposition = generate_decomposition(matrix, 4)
 
-        with open(f"codebases-data/{repo_name}/{repo_name}-author-v3.json", "r") as d:
-            authors_data = json.load(d)
+        for linkage in linkage_types:
+            print(f"Decomposition with linkage type: '{linkage}'")
+            decomposition = generate_decomposition(matrix, 4, linkage)
 
-        print("Counting metrics")
-        n_monolith_authors = get_total_authors_count(authors_data)
-        cpm = compute_average_contributors_per_microservice(decomposition, commit_data, authors_data)
-        tsr = cpm/n_monolith_authors
-        tsr_values.append(tsr)
-        coupling_type.append("LC")
-        data.append([tsr, "LC"])
-        print(f"tsr={tsr}")
+            with open(f"codebases-data/{repo_name}/{repo_name}-author-v3.json", "r") as d:
+                authors_data = json.load(d)
+
+            print("Counting metrics")
+            n_monolith_authors = get_total_authors_count(authors_data)
+            cpm = compute_average_contributors_per_microservice(decomposition, commit_data, authors_data)
+            tsr = cpm/n_monolith_authors
+            tsr_values.append(tsr)
+            linkage_type.append(linkage)
+            data.append([repo_name, tsr, linkage])
+            print(f"tsr={tsr}")
         repo_count += 1
 
-    print(f"DONE! Mean of tsr is = {sum(tsr_values)/repo_count}")
     df = pd.DataFrame(data)
-    df.columns = ["tsr", "strategy"]
-    fig = px.box(df, x="strategy", y="tsr", points="all")
+    df.columns = ["repoName", "tsr", "linkageType"]
+    fig = px.box(df, x="linkageType", y="tsr", points="all")
     fig.show()
 
 

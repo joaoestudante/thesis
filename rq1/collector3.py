@@ -77,6 +77,7 @@ class ShellCommands:
 
 class Repository:
     def __init__(self, name: str, url: str, cloning_location: str):
+        self.current_change_event_counter = None
         self.name = name
         self.url = url
         self.cloning_location = cloning_location
@@ -94,7 +95,7 @@ class Repository:
         self.pydriller_repo = Git(self.path)
         return self
 
-    def get_full_history(self, n_commits):
+    def get_full_history(self, n_commits=None):
         all_commits = list(self.pydriller_repo.get_list_commits())
         history = []
         print("Parsing all commits")
@@ -116,47 +117,50 @@ class Repository:
                     parsed_files.append(ChangedFile(old_path, new_path, change_type))
             if len(parsed_files) > 0:
                 history.append(ChangeEvent(parsed_files, commit.committer_date, commit.author.email, commit.hash))
-            if i == n_commits:
+            if n_commits is not None and i == n_commits:
                 break
         return history
 
     def clear_deleted_files(self, full_history):
         print("Detecting deleted filenames")
         deleted_filenames = set()
-        for event in tqdm(full_history):
+        for event in full_history:
             for file in event.changed_diffs:
                 if file.change_type == "D":
                     deleted_filenames.add(file.old_path)
-        print(f"{len(deleted_filenames)} were deleted in the history. Clearing them.")
 
         for file in deleted_filenames:
             for event in full_history:
                 for entry in event.changed_diffs:
                     if entry.old_path == file or entry.new_path == file or entry.future_path == file:
                         event.delete_file(entry)
-        print("Cleared.")
 
         return full_history
 
     def correct_renamed_files(self, history):
         print("Correcting renames")
         counter = 0
+        cache = {}
 
         for event in history:
             for entry in event.changed_diffs:
-                last_name = self.find_last_name(entry.future_path, counter, history)
+                last_name = self.find_last_name(entry.future_path, counter, history, cache)
                 if last_name != entry.future_path:
                     entry.future_path = last_name
             counter += 1
         return history
 
-    def find_last_name(self, name, counter, history):
+    def find_last_name(self, name, counter, history, cache):
         new_name = name
+        in_cache = cache.get(name, "")
+        if in_cache != "":
+            return in_cache
         for i in range(counter, len(history)):
             event = history[i]
             for entry in event.changed_diffs:
                 if entry.old_path == new_name and entry.old_path != entry.new_path:
                     new_name = entry.new_path
+        cache[name] = new_name
         # print(f"{name} has changed to {new_name}")
         return new_name
 
@@ -171,16 +175,42 @@ class Repository:
                 print(f"{file} is in dict, but not in repo")
 
 
-def get_logical_coupling(history_with_renames_fixed):
-    result = defaultdict(list)
+    def get_logical_coupling(self, history_with_renames_fixed):
+        result = defaultdict(list)
 
-    for event in history_with_renames_fixed:
-        if len(event.changed_diffs) >= 2:
-            for entry in event.changed_diffs:
-                new_change = event.changed_diffs[:]
-                new_change.remove(entry)
-                result[entry.future_path] += [e.future_path for e in new_change]
-    return result
+        start = history_with_renames_fixed[0].timestamp.replace(tzinfo=None)
+        end = history_with_renames_fixed[-1].timestamp.replace(tzinfo=None)
+
+        timestamps = pd.date_range(start, end, freq="H")
+        events_grouped = []
+        print("Grouping commits")
+        start_counter = 0
+
+        for i in range(1, len(timestamps)):
+            events_to_consider = []
+            start_date = timestamps[i-1]
+            end_date = timestamps[i]
+            for event in history_with_renames_fixed[start_counter:]:
+                if start_date <= event.timestamp.replace(tzinfo=None) < end_date:
+                    events_to_consider.append(event)
+                    start_counter += 1
+
+                if event.timestamp.replace(tzinfo=None) > end_date:  # any event after this will always be ignored
+                    break
+            if len(events_to_consider) > 0:
+                events_grouped.append(events_to_consider)
+
+        print("Constructing dict")
+        for event_group in events_grouped:
+            diffs = []
+            for event in event_group:
+                diffs += event.changed_diffs
+            if len(diffs) >= 2:
+                for entry in diffs:
+                    new_change = diffs[:]
+                    new_change.remove(entry)
+                    result[entry.future_path] += [e.future_path for e in new_change]
+        return result
 
 
 def get_authors_result(cleaned_history):
@@ -200,20 +230,28 @@ def main():
     if not os.path.isdir(data_output_location):
         os.mkdir(data_output_location)
 
-    repo_data = pd.read_csv("mazlami-codebases.csv")
-    for repo_name, repo_link, n_commits in zip(repo_data["codebase"], repo_data["repository_link"], repo_data["n_commits"]):
-        print("CHECKING " + repo_name)
+    repo_data = pd.read_csv("joao-codebases.csv")
+    for repo_name, repo_link in zip(repo_data["codebase"], repo_data["repository_link"]):
+        print("\nCHECKING " + repo_name)
         repository = Repository(repo_name, repo_link, cloning_location).clone()
         if os.path.isfile(f"files-changed/{repo_name}v3.pkl"):
             with open(f"files-changed/{repo_name}v3.pkl", "rb") as f:
                 full_history = pickle.load(f)
         else:
-            full_history = repository.get_full_history(n_commits)
+            full_history = repository.get_full_history()
             with open(f"files-changed/{repo_name}v3.pkl", "wb") as h:
                 pickle.dump(full_history, h)
-        history_with_renames_fixed = repository.correct_renamed_files(full_history)
-        cleaned_history = repository.clear_deleted_files(history_with_renames_fixed)
-        logical_coupling_result = get_logical_coupling(cleaned_history)
+
+        if os.path.isfile(f"files-changed/{repo_name}-clean-history.pkl"):
+            with open(f"files-changed/{repo_name}-clean-history.pkl", "rb") as f:
+                cleaned_history = pickle.load(f)
+        else:
+            history_with_renames_fixed = repository.correct_renamed_files(full_history)
+            cleaned_history = repository.clear_deleted_files(history_with_renames_fixed)
+            with open(f"files-changed/{repo_name}-clean-history.pkl", "wb") as f:
+                pickle.dump(cleaned_history, f)
+
+        logical_coupling_result = repository.get_logical_coupling(cleaned_history)
         authors_result = get_authors_result(cleaned_history)
         # repository.check_files(logical_coupling_result)
 
@@ -224,6 +262,8 @@ def main():
             json.dump(logical_coupling_result, sort_keys=True, indent=2, separators=(',', ': '), fp=outfile)
         with open(f"codebases-data/{repo_name}/{repo_name}-author-v3.json", "w") as outfile:
             json.dump(authors_result, sort_keys=True, indent=2, separators=(',', ': '), fp=outfile)
+
+        print("Saved.")
 
 
 if __name__ == "__main__":
