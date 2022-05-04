@@ -68,13 +68,22 @@ def compute_average_contributors_per_microservice(decomposition, commit_data, au
 
 def main():
     repos = pd.read_csv("joao-codebases.csv")
+    data = extract_data(repos)
+
+    df = pd.DataFrame(data)
+    df.columns = ["repoName", "tsr", "linkageType"]
+    fig = px.box(df, x="linkageType", y="tsr", points="all")
+    fig.show()
+
+
+def extract_data(repos):
     tsr_values = []
     linkage_type = []
     data = []
     repo_count = 0
-
-    linkage_types = ['single', 'complete', 'average', 'weighted', 'centroid', 'median', 'ward']
+    # linkage_types = ['single', 'complete', 'average', 'weighted', 'centroid', 'median', 'ward']
     for repo_name in repos["codebase"]:
+        print("")
         print(repo_name)
         with open(f"codebases-data/{repo_name}/{repo_name}-commit-v3.json", "r") as d:
             commit_data = json.load(d)
@@ -82,27 +91,23 @@ def main():
         print("Building matrix")
         matrix = generate_similarity_matrix(commit_data)
 
-        for linkage in linkage_types:
-            print(f"Decomposition with linkage type: '{linkage}'")
-            decomposition = generate_decomposition(matrix, 4, linkage)
+        # for linkage in linkage_types:
+        # print(f"Decomposition with linkage type: '{linkage}'")
+        decomposition = generate_decomposition(matrix, 4, 'average')
 
-            with open(f"codebases-data/{repo_name}/{repo_name}-author-v3.json", "r") as d:
-                authors_data = json.load(d)
+        with open(f"codebases-data/{repo_name}/{repo_name}-author-v3.json", "r") as d:
+            authors_data = json.load(d)
 
-            print("Counting metrics")
-            n_monolith_authors = get_total_authors_count(authors_data)
-            cpm = compute_average_contributors_per_microservice(decomposition, commit_data, authors_data)
-            tsr = cpm/n_monolith_authors
-            tsr_values.append(tsr)
-            linkage_type.append(linkage)
-            data.append([repo_name, tsr, linkage])
-            print(f"tsr={tsr}")
-        repo_count += 1
-
-    df = pd.DataFrame(data)
-    df.columns = ["repoName", "tsr", "linkageType"]
-    fig = px.box(df, x="linkageType", y="tsr", points="all")
-    fig.show()
+        print("Counting metrics")
+        n_monolith_authors = get_total_authors_count(authors_data)
+        cpm = compute_average_contributors_per_microservice(decomposition, commit_data, authors_data)
+        tsr = cpm / n_monolith_authors
+        tsr_values.append(tsr)
+        # linkage_type.append(linkage)
+        data.append([repo_name, tsr, 'commit-analysis-mazlami', "mazlami"])
+        print(f"tsr={tsr}")
+    repo_count += 1
+    return data
 
 
 if __name__ == "__main__":
