@@ -1,5 +1,11 @@
 codebases/
-
-mono2micro/
+mono2micro*/
+mazlami-codebases/
+mazlami-solution/
+microserviceExtraction-backend/
 
 .Rproj.user/
+.idea/
+*.csv
+
+# Added by cargo
