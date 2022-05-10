@@ -11,6 +11,6 @@ git log --reverse --name-status --pretty=format:"commit	%H	%ct	%ce" --find-renam
 awk -F$'\t' -f $currentpath/log.awk $currentpath/log.log 
 
 #Remove temp file
-rm log.log
+#rm log.log
 
 git config --unset diff.renameLimit
