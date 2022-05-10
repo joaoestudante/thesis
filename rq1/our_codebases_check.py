@@ -26,11 +26,8 @@ def contributors_per_microservice(clusters_four_data, author_data, n_clusters):
 
 def get_all_clusters_files(repo_name):
     matches = difflib.get_close_matches(repo_name, os.listdir("../mono2micro/codebases"), cutoff=0.4)
-    base_dir = ""
     paths = []
-    for match in matches:
-        if "entities" in match:
-            base_dir = f"../mono2micro/codebases/{match}"
+    base_dir = f"../mono2micro/codebases/{repo_name}__latest"
     for folder_file in os.listdir(base_dir):
         if "," in folder_file:  # it's a static decomposition
             clusters = folder_file.split(",")[-1]
