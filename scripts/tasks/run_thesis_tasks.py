@@ -21,5 +21,7 @@ def main():
 
     collector_service.collect_data()
 
+    console.rule("Creating codebases in Mono2Micro")
+
 if __name__ == "__main__":
     main()

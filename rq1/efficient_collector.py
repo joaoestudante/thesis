@@ -30,7 +30,7 @@ def findsubsets(S, m):
 
 
 def get_history(repo_name) -> pd.DataFrame:
-    command = f"./commit_log_script.sh ../../../Downloads/codebases/{repo_name}/ | grep '\.java'"
+    command = f"./commit_log_script.sh ../codebases/{repo_name}/ | grep '\.java'"
     try:
         output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
     except subprocess.CalledProcessError as e:
@@ -172,12 +172,14 @@ def get_couplings(repo_name, ignore_refactors):
 
 
 def main():
-    codebases_folder = "../../../Downloads/codebases/"
+    codebases_folder = "../codebases/"
     valid_codebases = get_codebases_of_interest(codebases_folder)
     ignore_refactors = True
     total_codebases = len(valid_codebases)
     current_codebase_id = 1
     for repo_name in valid_codebases:
+        if repo_name != 'APMHome':
+            continue
         print(
             f"===================== {bcolors.UNDERLINE} {repo_name} {current_codebase_id}/{total_codebases} {bcolors.ENDC} ===================== ")
         t0 = time.time()
@@ -206,8 +208,9 @@ def main():
         logical_coupling_json, authors_json = convert_logical_coupling_authors_to_json(
             all_logical_coupling, fixed_history, filename_ids)
 
-        write_files(entities_logical_coupling_json, authors_entities_json, repo_name, f"{repo_name}-entities")
-        write_files(logical_coupling_json, authors_json, repo_name, f"{repo_name}-all-files")
+        print(logical_coupling_json)
+        # write_files(entities_logical_coupling_json, authors_entities_json, repo_name, f"{repo_name}-entities")
+        # write_files(logical_coupling_json, authors_json, repo_name, f"{repo_name}-all-files")
 
 
 if __name__ == '__main__':

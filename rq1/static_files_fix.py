@@ -87,9 +87,9 @@ def get_commit_count(codebase, codebases_root):
 
 
 def main():
-    codebases_root = "../../../Downloads/codebases/"
+    codebases_root = "../codebases/"
     output_directory = "all-codebases-data"
-    data_collection_root = "../mono2micro/data/static/CodebasesDetails/CodebasesStaticCollectionDatafiles" \
+    data_collection_root = "../mono2micro-mine/data/static/CodebasesDetails/CodebasesStaticCollectionDatafiles" \
                            "/staticCollectionDatafiles/staticCollectionDatafiles/"
     codebases = get_codebases_of_interest(codebases_root)
     for codebase in codebases:
