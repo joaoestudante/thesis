@@ -1,6 +1,6 @@
 import helpers.static_files_fix as static_files_fix
 from rich.console import Console
-from collector.service import CommitCollectorService
+import collector.service as collector
 from helpers.constants import Constants
 
 
@@ -16,10 +16,7 @@ def main():
     # static_files_fix.correct_static_files()
 
     console.rule("Running commit collection")
-    collector_service = CommitCollectorService(
-        static_files_fix.get_codebases_of_interest(Constants.codebases_root_directory))
-
-    collector_service.collect_data()
+    collector.collect_data(static_files_fix.get_codebases_of_interest(Constants.codebases_root_directory))
 
     console.rule("Creating codebases in Mono2Micro")
 
