@@ -1,5 +1,6 @@
 codebases/
-mono2micro*/
+mono2microclean/
+mono2micro-mine/
 mazlami-codebases/
 mazlami-solution/
 microserviceExtraction-backend/

@@ -1,2 +1,5 @@
 *.json
 *.pkl
+.Rhistory
+.RData
+*.log
