@@ -48,9 +48,9 @@ class History:
 
         return self
 
-    def remove_refactors(self):
-        self.history_df = self.history_df.groupby('commit_hash').filter(lambda x: len(x) < 100)
-        return self
+    def get_no_refactors_copy(self, cutoff_value):
+        no_refactors_df = self.history_df.groupby('commit_hash').filter(lambda x: len(x) < cutoff_value)
+        return History(self.codebase_name, no_refactors_df)
 
     def get_entities_only_copy(self, entities_full_names):
         entities_only_df = self.history_df.loc[self.history_df['filename'].isin(entities_full_names)]

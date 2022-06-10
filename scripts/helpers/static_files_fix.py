@@ -17,9 +17,13 @@ from helpers.constants import Constants
 def get_codebases_of_interest(codebases_root):
     results = []
     for folder in os.listdir(codebases_root):
+        if "_adapted" in folder:
+            continue
         if ".git" in os.listdir(f"{codebases_root}/{folder}"):
             commit_count = get_commit_count(folder, codebases_root)
-            if commit_count >= 100:
+            author_count = get_author_count(folder, codebases_root)
+            if commit_count >= 100 and author_count > 1:
+                print(f"{folder} has {commit_count} commits and {author_count} authors")
                 results.append(folder)
 
     return results
@@ -91,6 +95,11 @@ def get_commit_count(codebase, codebases_root):
         return int(count)
     else:
         return 0
+
+
+def get_author_count(codebase, codebases_root):
+    count = os.popen(f"cd {codebases_root}/{codebase} && git log --pretty='%ae' | sort | uniq | wc -l").read().replace('\n', '')
+    return int(count)
 
 
 def correct_static_files():

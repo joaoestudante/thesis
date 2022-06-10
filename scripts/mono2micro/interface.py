@@ -201,41 +201,46 @@ def run_analyser(codebases):
 
         # Copy the result into the other type (entities) - analyser is based on static analysis, so there are no
         # differences between both types.
-        copy_tree(f"{Constants.mono2micro_codebases_root}/{codebase}_all/analyser",
-                  f"{Constants.mono2micro_codebases_root}/{codebase}_entities/analyser")
+        # copy_tree(f"{Constants.mono2micro_codebases_root}/{codebase}_all/analyser",
+        #           f"{Constants.mono2micro_codebases_root}/{codebase}_entities/analyser")
 
         print(f":white_circle: Converting result to .csv")
         save_best_decompositions_from_static_analyser(codebase)
 
 
 def save_best_decompositions_from_static_analyser(codebase):
-    with open(f"{Constants.mono2micro_codebases_root}/{codebase}_all/analyser/analyserResult.json", "r") as f:
+    with open(f"{Constants.mono2micro_codebases_root}/{codebase}_all/analyser/analyserResult5Cutoff.json", "r") as f:
         analyser_result = parse_analyser_result(json.load(f))
     max_complexity = analyser_result['complexity'].max()
-    analyser_result['pondered_complexity'] = analyser_result['complexity'] / max_complexity
-    analyser_result = analyser_result.loc[analyser_result['complexity'] != max_complexity]
-    decomposition_by_n_clusters = analyser_result.groupby('clusters')
-    best_decompositions = []
-    for cluster, cluster_amount in decomposition_by_n_clusters:
-        if int(str(cluster)) > 10:
-            break
-        minimum_complexity = cluster_amount.loc[
-            cluster_amount['complexity'] == cluster_amount['complexity'].min()].head(1)
-        best_decompositions.append((float(minimum_complexity['access']),
-                                    float(minimum_complexity['write']),
-                                    float(minimum_complexity['read']),
-                                    float(minimum_complexity['sequence']),
-                                    int(minimum_complexity['clusters']),
-                                    float(minimum_complexity['cohesion']),
-                                    float(minimum_complexity['coupling']),
-                                    float(minimum_complexity['complexity']),
-                                    float(minimum_complexity['pondered_complexity'])))
-
-    best = pd.DataFrame(best_decompositions, columns=['access', 'write', 'read', 'sequence',
-                                                      'clusters', 'cohesion', 'coupling', 'complexity',
-                                                      'pondered_complexity'])
-    best.to_csv(f"{Constants.codebases_data_output_directory}/{codebase}/best_static_decompositions.csv", index=False)
-    analyser_result.to_csv(f"{Constants.codebases_data_output_directory}/{codebase}/all_static_decompositions.csv",
+    if max_complexity != 0:
+        analyser_result['pondered_complexity'] = analyser_result['complexity'] / max_complexity
+        analyser_result = analyser_result.loc[analyser_result['complexity'] != max_complexity]
+    else:
+        analyser_result['pondered_complexity'] = 0
+    # decomposition_by_n_clusters = analyser_result.groupby('clusters')
+    # best_decompositions = []
+    # for cluster, cluster_amount in decomposition_by_n_clusters:
+    #     if int(str(cluster)) > 10:
+    #         break
+    #     minimum_complexity = cluster_amount.loc[
+    #         cluster_amount['complexity'] == cluster_amount['complexity'].min()].head(1)
+    #     best_decompositions.append((float(minimum_complexity['access']),
+    #                                 float(minimum_complexity['write']),
+    #                                 float(minimum_complexity['read']),
+    #                                 float(minimum_complexity['sequence']),
+    #                                 float(minimum_complexity['commit']),
+    #                                 float(minimum_complexity['author']),
+    #                                 int(minimum_complexity['clusters']),
+    #                                 float(minimum_complexity['cohesion']),
+    #                                 float(minimum_complexity['coupling']),
+    #                                 float(minimum_complexity['complexity']),
+    #                                 float(minimum_complexity['pondered_complexity'])))
+    #
+    # best = pd.DataFrame(best_decompositions, columns=['access', 'write', 'read', 'sequence',
+    #                                                   'clusters', 'cohesion', 'coupling', 'complexity',
+    #                                                   'pondered_complexity'])
+    # best.to_csv(f"{Constants.codebases_data_output_directory}/{codebase}/best_static_decompositions.csv", index=False)
+    analyser_result.to_csv(f"{Constants.codebases_data_output_directory}/{codebase}/all_static_decompositions_all_metrics5.csv",
                            index=False)
 
 
@@ -246,12 +251,12 @@ def run_commit_analyser(codebases):
         print("")
         print(f"[underline]{codebase}[/underline] [{i + 1}/{len(codebases)}]")
 
-        print(f":white_circle: ({datetime.now().strftime('%H:%M:%S')}) Running for all files... ", end="")
-        result = mono2micro.do_commit_analyse(codebase, "_all")
-        if result == 200:
-            print(f"[green]Success.[/green] Finished at {datetime.now().strftime('%H:%M:%S')}")
-        else:
-            print(f"[red]Error (code = {result}). Aborting. [/red]")
+        # print(f":white_circle: ({datetime.now().strftime('%H:%M:%S')}) Running for all files... ", end="")
+        # result = mono2micro.do_commit_analyse(codebase, "_all")
+        # if result == 200:
+        #     print(f"[green]Success.[/green] Finished at {datetime.now().strftime('%H:%M:%S')}")
+        # else:
+        #     print(f"[red]Error (code = {result}). Aborting. [/red]")
 
         print(f":white_circle: ({datetime.now().strftime('%H:%M:%S')}) Running for entities only... ", end="")
         result = mono2micro.do_commit_analyse(codebase, "_entities")
@@ -260,7 +265,7 @@ def run_commit_analyser(codebases):
         else:
             print(f"[red]Error (code = {result}). Aborting. [/red]")
 
-        save_best_decompositions_from_commit_analyser(codebase, "_all")
+        # save_best_decompositions_from_commit_analyser(codebase, "_all")
         save_best_decompositions_from_commit_analyser(codebase, "_entities")
 
 

@@ -29,7 +29,7 @@ def get_logical_couplings(history: History):
     return pd.DataFrame(couplings, columns=['first_file', 'second_file'])
 
 
-def coupling_to_json(logical_coupling, history: History, repo: Repository, entities_only: bool) -> dict:
+def coupling_to_json(logical_coupling, repo: Repository) -> dict:
     """
     Organizes pairs that appear together, and stores the information in a dictionary ready to be saved as a
     .json file.
@@ -46,34 +46,41 @@ def coupling_to_json(logical_coupling, history: History, repo: Repository, entit
     """
 
     logical_coupling_data = defaultdict(list)
-    if entities_only:
-        filenames = repo.entity_full_names
-    else:
-        filenames = repo.unique_filenames
 
-    for file in filenames:
+    for file in repo.unique_filenames:
         changed_with_this_file = logical_coupling.loc[logical_coupling['first_file'] == file]['second_file']
-        for file2 in list(changed_with_this_file):
-            logical_coupling_data[repo.get_file_id(file)].append(int(repo.get_file_id(file2)))
+        if len(list(changed_with_this_file)) == 0:
+            logical_coupling_data[str(repo.get_file_id(file))] = []
+        else:
+            for file2 in list(changed_with_this_file):
+                logical_coupling_data[str(repo.get_file_id(file))].append(int(repo.get_file_id(file2)))
 
-    # Any file not in the logical coupling data? Add it... with 0 couplings to others
-    # This can happen if a file changed alone, or only with non .java files, or in refactors, or all of them. Either
-    # way, for our purposes, it has not changed with other files.
-    for file in filenames:
-        file_id = repo.get_file_id(file)
-        if file_id not in logical_coupling_data:
-            logical_coupling_data[file_id] = []
+    # Any entity that we missed for some reason? Also add it here. Otherwise, many tears will be shed 😭
+    for entity_id in list(repo.id_to_entity.keys()):
+        if entity_id not in logical_coupling_data:
+            logical_coupling_data[entity_id] = []
 
     return logical_coupling_data
 
 
 def authors_to_json(history: History, repo: Repository):
     author_data = {}
-    filenames = repo.unique_filenames
-    for file in filenames:
+    for file in repo.unique_filenames:
         file_authors = history.get_file_authors(file)
         author_data[repo.get_file_id(file)] = list(set(file_authors))
     return author_data
+
+
+def remove_non_entities_files(all_files_logical_coupling_json, codebase_repo):
+    non_entities_coupling = {}
+    entities_ids = list(codebase_repo.id_to_entity.keys())
+    for entity_id in entities_ids:
+        non_entities_coupling[entity_id] = all_files_logical_coupling_json[entity_id]
+
+    for entity_id in non_entities_coupling:
+        non_entities_coupling[entity_id] = [f for f in non_entities_coupling[entity_id] if str(f) in entities_ids]
+
+    return non_entities_coupling
 
 
 def collect_data(codebases):
@@ -84,24 +91,19 @@ def collect_data(codebases):
 
         print(":white_circle: Parsing history")
         codebase_repo = Repository(codebase)
-        history = codebase_repo.cleanup_history()
-        entities_history = history.get_entities_only_copy(codebase_repo.entity_full_names)
+        cutoff_value = 20  # Commits with 5 or more files are ignored
+        history = codebase_repo.cleanup_history(cutoff_value)
 
         print(":white_circle: Getting couplings")
-        print("  :white_circle: All files")
         all_logical_coupling = get_logical_couplings(history)
 
-        print("  :white_circle: Entities")
-        entities_logical_couplings = get_logical_couplings(entities_history)
-
         print(":white_circle: Converting to JSON")
-        print("  :white_circle: All files")
-        all_files_logical_coupling_json = coupling_to_json(all_logical_coupling, history, codebase_repo, False)
+        all_files_logical_coupling_json = coupling_to_json(all_logical_coupling, codebase_repo)
         all_files_authors_json = authors_to_json(history, codebase_repo)
 
-        print("  :white_circle: Entities")
-        entities_logical_coupling_json = coupling_to_json(entities_logical_couplings, entities_history, codebase_repo, True)
-        entities_authors_json = authors_to_json(entities_history, codebase_repo)
+        entities_logical_coupling_json = remove_non_entities_files(all_files_logical_coupling_json, codebase_repo)
+        entities_authors_json = {k: v for k, v in all_files_authors_json.items() if k in list(codebase_repo.id_to_entity.keys())}
+
 
         print(":white_circle: Writing")
         write_jsons(all_files_logical_coupling_json, entities_logical_coupling_json,

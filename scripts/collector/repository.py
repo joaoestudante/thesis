@@ -14,12 +14,16 @@ class Repository:
     def __init__(self, codebase_name):
         self.name = codebase_name
         self.history = History(codebase_name)
+        self.no_refactors_history = None
 
     def clone(self):
         raise NotImplemented
 
-    def cleanup_history(self) -> History:
-        return self.history.fix_renames().fix_deletes().remove_refactors()
+    def cleanup_history(self, cutoff_value) -> History:
+        self.history = self.history.fix_renames().fix_deletes()
+        self.no_refactors_history = self.history.get_no_refactors_copy(cutoff_value)
+        self.history = self.no_refactors_history
+        return self.no_refactors_history
 
     @property
     def unique_filenames(self):
@@ -53,7 +57,7 @@ class Repository:
         for file in self.unique_filenames:
             short_name = os.path.splitext(os.path.basename(file))[0]
             if short_name in list(id_to_entity.values()):
-                ids_filename[entity_to_id[short_name]] = short_name
+                ids_filename[str(entity_to_id[short_name])] = short_name
             else:
                 last_id += 1
                 ids_filename[str(last_id)] = short_name
