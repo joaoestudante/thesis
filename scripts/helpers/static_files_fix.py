@@ -23,7 +23,7 @@ def get_codebases_of_interest(codebases_root):
             commit_count = get_commit_count(folder, codebases_root)
             author_count = get_author_count(folder, codebases_root)
             if commit_count >= 100 and author_count > 1:
-                print(f"{folder} has {commit_count} commits and {author_count} authors")
+                # print(f"{folder} has {commit_count} commits and {author_count} authors")
                 results.append(folder)
 
     return results
