@@ -91,7 +91,7 @@ def collect_data(codebases):
 
         print(":white_circle: Parsing history")
         codebase_repo = Repository(codebase)
-        cutoff_value = 20  # Commits with 5 or more files are ignored
+        cutoff_value = 100  # Commits with 5 or more files are ignored
         history = codebase_repo.cleanup_history(cutoff_value)
 
         print(":white_circle: Getting couplings")
