@@ -5,20 +5,18 @@ import time
 
 import pandas as pd
 import requests
-import statsmodels.api as sm
 
-import helpers.static_files_fix as static_files_fix
 from rich.console import Console
-import collector.service as collector
-from helpers.constants import Constants
-from mono2micro import interface
 from distutils.dir_util import copy_tree
 from rich import print
 import shutil
 
-import metrics.tsr as tsr
-
+from metrics import tsr
+from mono2micro import interface
 from mono2micro.interface import save_best_decompositions_from_static_analyser
+from collector import service as collector
+from helpers import static_files_fix
+from helpers.constants import Constants
 
 
 def single_cut(commit_weight, author_weight, clusters, codebase_name):
