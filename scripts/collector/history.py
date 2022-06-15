@@ -79,3 +79,7 @@ class History:
 
     def get_file_authors(self, file):
         return list(self.history_df[self.history_df['filename'] == file]['author'])
+
+    def commits(self):
+        for name, group in self.history_df.groupby('commit_hash'):
+            yield name, group
