@@ -38,8 +38,11 @@ def update_collection_file(codebase, data_collection_root):
     all_jsons = os.listdir(data_collection_root)
     matches = difflib.get_close_matches(codebase + ".json", all_jsons)
 
-    with open(f"{data_collection_root}{matches[0]}", "r") as f:
-        original_data = json.load(f)
+    try:
+        with open(f"{data_collection_root}{matches[0]}", "r") as f:
+            original_data = json.load(f)
+    except IndexError:  # No matches found
+        return entity_to_id, data_collection
 
     if original_data is not None:
         for controller_method in original_data.keys():
@@ -108,6 +111,9 @@ def correct_static_files():
     codebases = get_codebases_of_interest(Constants.codebases_root_directory)
     for codebase in codebases:
         entity_to_id, data_collection = update_collection_file(codebase, static_data_collection_root)
+        if len(entity_to_id) == 0:
+            print(f"* [red]{codebase}[/red] :cross_mark:")
+            continue
         if write_files(entity_to_id, data_collection, Constants.codebases_data_output_directory, codebase):
             print(f"* [green]{codebase}[/green] :heavy_check_mark:")
         else:
