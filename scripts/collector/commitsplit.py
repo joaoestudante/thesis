@@ -152,4 +152,4 @@ def collect(codebases):
         with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_commit_mixed.json", "w") as f:
             json.dump(couplings_json, f)
 
-collect(["fenixedu-academic"])
+# collect(["fenixedu-academic"])
