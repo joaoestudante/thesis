@@ -25,15 +25,15 @@ class Mono2MicroRequests:
         }
         codebases_path = Constants.codebases_data_output_directory
         files = {
-            'datafile': open(f"{codebases_path}/{codebase_name}/{codebase_name}.json"),
+            'datafile': open(f"{codebases_path}/{codebase_name}/{codebase_name}-split.json"),
             'translationFile': open(f"{codebases_path}/{codebase_name}/{codebase_name}_IDToEntity.json"),
-            'commitFile': open(f"{codebases_path}/{codebase_name}/{codebase_name}_commit_{codebase_suffix}.json"),
-            'authorFile': open(f"{codebases_path}/{codebase_name}/{codebase_name}_author_{codebase_suffix}.json")
+            'commitFile': open(f"{codebases_path}/{codebase_name}/{codebase_name}_commit_entities.json"),
+            'authorFile': open(f"{codebases_path}/{codebase_name}/{codebase_name}_author_entities.json")
         }
         r = requests.post(self.create_codebase_url, files=files, data=data)
         return r.status_code
 
-    def do_analyse(self, codebase):
+    def do_analyse(self, codebase, suffix):
         data = {
             "expert": {},
             "profile": "Generic",
@@ -41,7 +41,7 @@ class Mono2MicroRequests:
             "traceType": 0,
             "tracesMaxLimit": 0,
         }
-        r = requests.post(self.analyser_url.format(codebase + "_all"), json=data)
+        r = requests.post(self.analyser_url.format(codebase + "_" + suffix), json=data)
         return r.status_code
 
     def do_commit_analyse(self, codebase, suffix):
@@ -88,15 +88,15 @@ class Mono2MicroRequests:
         return r.status_code
 
 
-def create_codebases(codebases):
+def create_codebases(codebases, suffix):
     mono2micro = Mono2MicroRequests()
 
     for i, codebase in enumerate(codebases):
         print("")
         print(f"[underline]{codebase}[/underline] [{i + 1}/{len(codebases)}]")
 
-        print(":white_circle: Creating codebase for all files... ", end="")
-        all_files_result = mono2micro.do_create_codebase(codebase, "all")
+        print(":white_circle: Creating codebase... ", end="")
+        all_files_result = mono2micro.do_create_codebase(codebase, suffix)
         if all_files_result == 201:
             print("[green]Success.[/green]")
         else:
@@ -175,25 +175,25 @@ def create_decompositions(codebases):
         create(best_cuts, "entities")
 
 
-def run_analyser(codebases):
+def run_analyser(codebases, suffix):
     mono2micro = Mono2MicroRequests()
     for i, codebase in enumerate(codebases):
         print("")
         print(f"[underline]{codebase}[/underline] [{i + 1}/{len(codebases)}]")
         print(f":white_circle: ({datetime.now().strftime('%H:%M:%S')}) Running... ", end="")
-        result = mono2micro.do_analyse(codebase)
+        result = mono2micro.do_analyse(codebase, suffix)
         if result == 200:
             print(f"[green]Success.[/green] Finished at {datetime.now().strftime('%H:%M:%S')}")
         else:
             print(f"[red]Error (code = {result}). Aborting. [/red]")
-            break
+            exit()
 
         print(f":white_circle: Converting result to .csv")
-        save_best_decompositions_from_static_analyser(codebase)
+        save_best_decompositions_from_static_analyser(codebase, suffix)
 
 
-def save_best_decompositions_from_static_analyser(codebase):
-    with open(f"{Constants.mono2micro_codebases_root}/{codebase}_all/analyser/analyserResult.json", "r") as f:
+def save_best_decompositions_from_static_analyser(codebase, suffix):
+    with open(f"{Constants.mono2micro_codebases_root}/{codebase}_{suffix}/analyser/analyserResult.json", "r") as f:
         analyser_result = parse_analyser_result(json.load(f))
     max_complexity = analyser_result['complexity'].max()
     if max_complexity != 0:
@@ -201,5 +201,5 @@ def save_best_decompositions_from_static_analyser(codebase):
         analyser_result = analyser_result.loc[analyser_result['complexity'] != max_complexity]
     else:
         analyser_result['pondered_complexity'] = 0
-    analyser_result.to_csv(f"{Constants.codebases_data_output_directory}/{codebase}/all_static_decompositions_all_metrics.csv",
+    analyser_result.to_csv(f"{Constants.codebases_data_output_directory}/{codebase}/split_all_decompositions_all_metrics.csv",
                            index=False)
