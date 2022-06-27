@@ -13,10 +13,11 @@ import shutil
 
 from metrics import tsr
 from mono2micro import interface
-from mono2micro.interface import save_best_decompositions_from_static_analyser
+from mono2micro.interface import save_best_decompositions_from_static_analyser, parse_analyser_result
 from collector import service as collector
 from helpers import static_files_fix
 from helpers.constants import Constants
+import collector.functionalitysplit as fsplit
 
 
 def single_cut(commit_weight, author_weight, clusters, codebase_name):
@@ -33,11 +34,26 @@ def merge_analyser_csvs(codebases):
     dfs = []
     for codebase in codebases:
         print("Merging " + codebase)
-        codebase_df = pd.read_csv(f"{Constants.codebases_data_output_directory}/{codebase}/all_static_decompositions_all_metrics.csv")
+        codebase_df = pd.read_csv(f"{Constants.codebases_data_output_directory}/{codebase}/split_all_decompositions_all_metrics.csv")
         codebase_df['codebase_name'] = codebase
         dfs.append(codebase_df)
     all_together = pd.concat(dfs)
-    all_together.to_csv(f"{Constants.project_root}/resources/codebases_collection/max-complexities-analyser-result.csv", index=False)
+    all_together.to_csv(f"{Constants.project_root}/resources/codebases_collection/functionality-split-analyser-result.csv", index=False)
+
+
+def convert_single_analyser_json(mono2micro_codebase_name, codebase_name):
+    with open(f"{Constants.mono2micro_codebases_root}/{mono2micro_codebase_name}/analyser/analyserResult.json", "r") as f:
+        analyser_result = parse_analyser_result(json.load(f))
+    max_complexity = analyser_result['complexity'].max()
+    if max_complexity != 0:
+        analyser_result['pondered_complexity'] = analyser_result['complexity'] / max_complexity
+        analyser_result = analyser_result.loc[analyser_result['complexity'] != max_complexity]
+    else:
+        analyser_result['pondered_complexity'] = 0
+    analyser_result.to_csv(
+        f"{Constants.codebases_data_output_directory}/{codebase_name}-analyser.csv",
+        index=False)
+
 
 
 def main():
@@ -52,7 +68,8 @@ def main():
     # static_files_fix.correct_static_files()
     console.rule("Grabbing codebases of interest...")
     codebases_of_interest = static_files_fix.get_codebases_of_interest(Constants.codebases_root_directory)
-    codebases_of_interest.remove("fenixedu-academic")
+    codebases_of_interest = [c for c in codebases_of_interest if codebase_entities(c) >= 20]
+    # codebases_of_interest.remove("fenixedu-academic")
 
     # console.rule("Running commit collection")
     # collector.collect_data(["fenixedu-academic"])
@@ -71,26 +88,32 @@ def main():
     #     shutil.copyfile(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_author_entities.json",
     #                     f"{Constants.mono2micro_codebases_root}/{codebase}_entities/filesAuthors.json")
 
+    # console.rule("Converting static files to functionality split")
+    fsplit.collect(codebases_of_interest)
+    #
     # console.rule("Creating codebases in Mono2Micro")
-    # codebases_of_interest = ["fenixedu-academic"]
-    # interface.create_codebases(codebases_of_interest)
+    # # codebases_of_interest = ["fenixedu-academic"]
+    # interface.create_codebases(codebases_of_interest, "fsplit")
     # console.rule("Running static analyser")
-    # print("Total: " + str(len(codebases_of_interest)))
+    # print("Total: " + str(len(codebases_of_interest[8:])))
     # t0 = time.time()
-    # interface.run_analyser(codebases_of_interest)
+    # interface.run_analyser(codebases_of_interest[8:], "fsplit")
     # t1 = time.time()
     # print(f"Total time: {datetime.timedelta(t1-t0)}")
+    # #
     #
-
-    # # console.rule("Merging csvs")
+    # console.rule("Merging csvs")
     # for codebase in codebases_of_interest:
     #     print("Saving decompositions from " + codebase)
-    #     save_best_decompositions_from_static_analyser(codebase)
+    #     save_best_decompositions_from_static_analyser(codebase, "fsplit")
     # merge_analyser_csvs(codebases_of_interest)
 
-    console.rule("Getting tsr")
-    tsr_data = tsr.get_data(codebases_of_interest)
+    # console.rule("Getting tsr")
+    # tsr_data = tsr.get_data(codebases_of_interest)
 
+    # TODO: fazer um método para processar um analyser em especifico...
+
+    # convert_single_analyser_json("qt-functionality-split", "quizzes-tutor-functionality")
 
 
 if __name__ == "__main__":
