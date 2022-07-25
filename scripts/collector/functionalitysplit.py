@@ -9,6 +9,8 @@ The algorithm is like so:
     * Cluster those entities in the best way possible (according to scipy's fcluster method)
     * Create a new functionality for each of the generated clusters
 """
+from collections import defaultdict, Counter
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 from collector.commitsplit import parse_functionalities
@@ -19,18 +21,42 @@ import json
 from scipy.cluster import hierarchy
 import numpy as np
 from rich import print
+import matplotlib.pyplot as plt
+
+
+@dataclass
+class DataAnalysis:
+    entities_removed: int = 0
+    entities_separated: list[str] = field(default_factory=list)
+    pairs_with_split: list[str] = field(default_factory=list)
+
+    def mean_entities_removed_per_functionality(self, number_of_functionalities):
+        return self.entities_removed / number_of_functionalities
+
+    def entities_separation_counts(self):
+        return Counter(self.entities_separated)
+
+    def pairs_split_counts(self):
+        return Counter(self.pairs_with_split)
 
 
 class StaticFunctionality:
     def __init__(self, accesses, name):
         self.accesses = accesses
         self.name = name
+        self.clusters_colors = ["purple", "dark_orange3", "gold1"]
 
     def __str__(self):
         return f"{self.name} - {len(self.accesses)} accesses"
 
     def __repr__(self):
         return self.__str__()
+
+    def get_entities_names(self, id_to_entity):
+        names = []
+        for _id in self.entities_ids():
+            names.append(id_to_entity[str(_id)])
+        return names
 
     def add_access(self, access):
         self.accesses.append(access)
@@ -42,18 +68,18 @@ class StaticFunctionality:
             entities_ids.add(access[1])
         return entities_ids
 
-    def split(self, couplings):
+    def split(self, couplings, id_to_entity, data_analysis, print_actions=True, show_graph=True):
         new_functionalities = []
-        entities_in_functionaliy = set()
+        entities_in_functionality = set()
         for a in self.accesses:
-            entities_in_functionaliy.add(a[1])
-        if len(entities_in_functionaliy) == 1:
+            entities_in_functionality.add(a[1])
+        if len(entities_in_functionality) == 1:
             return [self]
 
         similarities = []
-        for entity1 in entities_in_functionaliy:
+        for entity1 in entities_in_functionality:
             entity1_similarity = []
-            for entity2 in entities_in_functionaliy:
+            for entity2 in entities_in_functionality:
                 if entity1 == entity2:
                     entity1_similarity.append(1)
                 else:
@@ -68,15 +94,68 @@ class StaticFunctionality:
 
         # Test if only one cluster exists - situation where it's all 1s
         if np.sum(clustering) == len(clustering):
+            if print_actions:
+                for access in self.accesses:
+                    entity_cluster = clustering[list(entities_in_functionality).index(access[1])]
+                    if print_actions:
+                        print(
+                            f"[{self.clusters_colors[entity_cluster - 1]}] {access} [/{self.clusters_colors[entity_cluster - 1]}]",
+                            end="")
+                print("")
+                print(f"[{self.clusters_colors[0]}] {self.name} [/{self.clusters_colors[0]}] has: "
+                      f"{self.get_entities_names(id_to_entity)}")
+                print("")
+                if show_graph:
+                    fig = plt.figure(figsize=(25, 10))
+                    hierarchy.dendrogram(hierarc, labels=np.array(
+                        [id_to_entity[str(entity_id)] for entity_id in entities_in_functionality]),
+                                         distance_sort='descending')
+                    plt.title(f"{self.name} - no split occured")
+                    plt.show()
             return [self]
 
         for i in range(n_clusters):
             new_functionalities.append(StaticFunctionality([], f"{self.name}-{i}"))
 
-        for access in self.accesses:
-            entity_cluster = clustering[list(entities_in_functionaliy).index(access[1])]
-            new_functionalities[entity_cluster-1].add_access(access)
+        if print_actions:
+            print(f"{self.name}'s trace is split this way: ")
 
+        for access in self.accesses:
+            entity_cluster = clustering[list(entities_in_functionality).index(access[1])]
+            new_functionalities[entity_cluster-1].add_access(access)
+            if print_actions:
+                print(f"[{self.clusters_colors[entity_cluster-1]}] {access} [/{self.clusters_colors[entity_cluster-1]}]", end="")
+
+        smallest_functionality = new_functionalities[0]
+        for new_functionality in new_functionalities:
+            if len(new_functionality.entities_ids()) < len(smallest_functionality.entities_ids()):
+                smallest_functionality = new_functionality
+
+        split_pairs = []
+        tmp_new_functionalities = new_functionalities.copy()
+        tmp_new_functionalities.remove(smallest_functionality)
+        for entities in smallest_functionality.entities_ids():
+            for other_functionalities in tmp_new_functionalities:
+                for other_entities in other_functionalities.entities_ids():
+                    split_pairs.append((id_to_entity[str(entities)], id_to_entity[str(other_entities)]))
+
+        data_analysis.entities_removed += len(smallest_functionality.entities_ids())
+        data_analysis.entities_separated += smallest_functionality.get_entities_names(id_to_entity)
+        data_analysis.pairs_with_split += split_pairs
+
+        if print_actions:
+            print("")
+            for i, new_functionality in enumerate(new_functionalities):
+                print(f"[{self.clusters_colors[i]}] {new_functionality.name} [/{self.clusters_colors[i]}] has: "
+                      f"{new_functionality.get_entities_names(id_to_entity)}")
+            print("")
+            if show_graph:
+                fig = plt.figure(figsize=(25, 10))
+                hierarchy.dendrogram(hierarc, labels=np.array(
+                    [id_to_entity[str(entity_id)] for entity_id in entities_in_functionality]),
+                                     distance_sort='descending')
+                plt.title(f"{self.name} - split")
+                plt.show()
         return new_functionalities
 
     def json_format(self):
@@ -119,12 +198,25 @@ def collect(codebases):
 
         print("  :white_circle: Splitting functionalities")
         final_data_collection = {}
+        id_to_entity = codebase_repo.id_to_entity
+        data_analysis = DataAnalysis()
         for functionality in functionalities:
-            for new_functionality in functionality.split(couplings_ids):
+            for new_functionality in functionality.split(couplings_ids, id_to_entity, data_analysis, print_actions=True, show_graph=False):
                 final_data_collection[new_functionality.name] = new_functionality.json_format()
 
+        print(f"{len(functionalities)} functionalities were split into {len(final_data_collection)} "
+              f"({round(len(final_data_collection)/len(functionalities), 2)}x increase)")
+
+        print(f"Average number of entities removed from main trace: "
+              f"{data_analysis.mean_entities_removed_per_functionality(len(final_data_collection) - len(functionalities))}")
+        print(f"Entities separations counts:")
+        print(data_analysis.entities_separation_counts().most_common())
+
+        print("Frequency of pairs that caused at least one of the entities to split")
+        print(data_analysis.pairs_split_counts().most_common(10))
+        print("")
         with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}-split.json", "w") as f:
             json.dump(final_data_collection, f)
 
 
-# collect(["spring-framework-petclinic"])
+# collect(["quizzes-tutor"])
