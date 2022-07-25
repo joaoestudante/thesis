@@ -19,14 +19,31 @@ def findsubsets(s: set, m: int):
     return set(itertools.permutations(s, m))
 
 
-def get_logical_couplings(history: History):
+def update_coupling(file, file_coupled, couplings):
+    if file in couplings:
+        if file_coupled in couplings[file]:
+            couplings[file][file_coupled] += 1
+        else:
+            couplings[file][file_coupled] = 1
+        couplings[file]["total_commits"] += 1
+    else:
+        couplings[file] = {
+            file_coupled: 1,
+            "total_commits": 1
+        }
+
+
+def get_logical_couplings(history: History, repo: Repository):
     couplings = []
+    logical_coupling = {}
     for bottom_range in range(history.first_ts, history.last_ts, Constants.group_commits_interval):
         top_range = bottom_range + Constants.group_commits_interval
         filenames = set(history.get_filenames_in_range(bottom_range, top_range))
-        couplings += findsubsets(filenames, 2)
-
-    return pd.DataFrame(couplings, columns=['first_file', 'second_file'])
+        if len(filenames) > 1:
+            for pair in findsubsets(filenames, 2):
+                update_coupling(str(repo.get_file_id(pair[0])), str(repo.get_file_id(pair[1])), logical_coupling)
+            couplings.append(filenames)
+    return couplings
 
 
 def coupling_to_json(logical_coupling, repo: Repository) -> dict:
@@ -95,21 +112,21 @@ def collect_data(codebases):
         history = codebase_repo.cleanup_history(cutoff_value)
 
         print(":white_circle: Getting couplings")
-        all_logical_coupling = get_logical_couplings(history)
+        all_logical_coupling = get_logical_couplings(history, codebase_repo)
 
         print(":white_circle: Converting to JSON")
-        all_files_logical_coupling_json = coupling_to_json(all_logical_coupling, codebase_repo)
-        all_files_authors_json = authors_to_json(history, codebase_repo)
-
-        entities_logical_coupling_json = remove_non_entities_files(all_files_logical_coupling_json, codebase_repo)
-        entities_authors_json = {k: v for k, v in all_files_authors_json.items() if k in list(codebase_repo.id_to_entity.keys())}
-
-
-        print(":white_circle: Writing")
-        write_jsons(all_files_logical_coupling_json, entities_logical_coupling_json,
-                    all_files_authors_json, entities_authors_json, codebase)
-
-        t1 = time.time()
+        # all_files_logical_coupling_json = coupling_to_json(all_logical_coupling, codebase_repo)
+        # all_files_authors_json = authors_to_json(history, codebase_repo)
+        #
+        # entities_logical_coupling_json = remove_non_entities_files(all_files_logical_coupling_json, codebase_repo)
+        # entities_authors_json = {k: v for k, v in all_files_authors_json.items() if k in list(codebase_repo.id_to_entity.keys())}
+        #
+        #
+        # print(":white_circle: Writing")
+        # write_jsons(all_files_logical_coupling_json, entities_logical_coupling_json,
+        #             all_files_authors_json, entities_authors_json, codebase)
+        #
+        # t1 = time.time()
         print(f"[underline]Done in {round(t1-t0, 2)} seconds.[/underline]")
 
 

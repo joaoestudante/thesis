@@ -66,13 +66,14 @@ def main():
 
     # console.rule("Converting static files")
     # static_files_fix.correct_static_files()
-    console.rule("Grabbing codebases of interest...")
-    codebases_of_interest = static_files_fix.get_codebases_of_interest(Constants.codebases_root_directory)
-    codebases_of_interest = [c for c in codebases_of_interest if codebase_entities(c) >= 20]
+    # console.rule("Grabbing codebases of interest...")
+    # codebases_of_interest = static_files_fix.get_codebases_of_interest(Constants.codebases_root_directory)
+    # codebases_of_interest.sort()
+    # print(codebases_of_interest)
     # codebases_of_interest.remove("fenixedu-academic")
 
-    # console.rule("Running commit collection")
-    # collector.collect_data(["fenixedu-academic"])
+    console.rule("Running commit collection")
+    collector.collect_data(["quizzes-tutor"])
     # save_best_decompositions_from_static_analyser("fenixedu-academic")
     # codebases_of_interest = ["quizzes-tutor"]
     # # # If the codebases are already created... replace the files
@@ -89,7 +90,7 @@ def main():
     #                     f"{Constants.mono2micro_codebases_root}/{codebase}_entities/filesAuthors.json")
 
     # console.rule("Converting static files to functionality split")
-    fsplit.collect(codebases_of_interest)
+    # fsplit.collect(codebases_of_interest)
     #
     # console.rule("Creating codebases in Mono2Micro")
     # # codebases_of_interest = ["fenixedu-academic"]
