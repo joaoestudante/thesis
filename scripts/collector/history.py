@@ -29,7 +29,9 @@ class History:
 
     def fix_renames(self) -> History:
         rename_info = self.history_df.loc[self.history_df['change_type'] == "RENAMED"]
+        i = 0
         for before, after in zip(rename_info['previous_filename'], rename_info['filename']):
+            i += 1
             self.history_df.loc[self.history_df['filename'] == before, 'filename'] = after
         return self
 

@@ -1,7 +1,9 @@
 import datetime
+import glob
 import json
 import os
 import time
+import csv
 
 import pandas as pd
 import requests
@@ -13,7 +15,7 @@ import shutil
 
 from metrics import tsr
 from mono2micro import interface
-from mono2micro.interface import save_best_decompositions_from_static_analyser, parse_analyser_result
+from mono2micro.interface import convert_analyser_result, parse_analyser_result
 from collector import service as collector
 from helpers import static_files_fix
 from helpers.constants import Constants
@@ -32,13 +34,14 @@ def codebase_entities(codebase_name):
 
 def merge_analyser_csvs(codebases):
     dfs = []
-    for codebase in codebases:
+    for codebase_data in codebases:
+        codebase = codebase_data[0]
         print("Merging " + codebase)
-        codebase_df = pd.read_csv(f"{Constants.codebases_data_output_directory}/{codebase}/split_all_decompositions_all_metrics.csv")
+        codebase_df = pd.read_csv(f"{Constants.codebases_data_output_directory}/{codebase}/analyserResult.csv")
         codebase_df['codebase_name'] = codebase
         dfs.append(codebase_df)
     all_together = pd.concat(dfs)
-    all_together.to_csv(f"{Constants.project_root}/resources/codebases_collection/functionality-split-analyser-result.csv", index=False)
+    all_together.to_csv(f"{Constants.project_root}/resources/codebases_collection/analyserCompilationCorrectMetrics.csv", index=False)
 
 
 def convert_single_analyser_json(mono2micro_codebase_name, codebase_name):
@@ -64,16 +67,17 @@ def main():
     """
     console = Console()
 
-    # console.rule("Converting static files")
-    # static_files_fix.correct_static_files()
-    # console.rule("Grabbing codebases of interest...")
-    # codebases_of_interest = static_files_fix.get_codebases_of_interest(Constants.codebases_root_directory)
-    # codebases_of_interest.sort()
-    # print(codebases_of_interest)
-    # codebases_of_interest.remove("fenixedu-academic")
-
-    console.rule("Running commit collection")
-    collector.collect_data(["quizzes-tutor"])
+    codebases = []
+    blacklist = ["blended-workflow", "fenixedu-academic", "edition"]
+    with open(f"{Constants.resources_directory}/codebases.csv", "r") as c:
+        reader = csv.reader(c)
+        next(reader)
+        codebases = [row for row in reader]
+    codebases = [c for c in codebases if c[0] not in blacklist]
+    #
+    # console.rule("Running commit collection")
+    # force_recollection = True
+    # collector.collect_data(codebases, force_recollection)
     # save_best_decompositions_from_static_analyser("fenixedu-academic")
     # codebases_of_interest = ["quizzes-tutor"]
     # # # If the codebases are already created... replace the files
@@ -93,28 +97,25 @@ def main():
     # fsplit.collect(codebases_of_interest)
     #
     # console.rule("Creating codebases in Mono2Micro")
-    # # codebases_of_interest = ["fenixedu-academic"]
-    # interface.create_codebases(codebases_of_interest, "fsplit")
+    # # # codebases_of_interest = ["fenixedu-academic"]
+    # interface.create_codebases(codebases, "")
     # console.rule("Running static analyser")
-    # print("Total: " + str(len(codebases_of_interest[8:])))
+    # # print("Total: " + str(len(codebases_of_interest[8:])))
     # t0 = time.time()
-    # interface.run_analyser(codebases_of_interest[8:], "fsplit")
+    # interface.run_analyser(codebases, "")
     # t1 = time.time()
     # print(f"Total time: {datetime.timedelta(t1-t0)}")
+    # # #
     # #
-    #
     # console.rule("Merging csvs")
-    # for codebase in codebases_of_interest:
-    #     print("Saving decompositions from " + codebase)
-    #     save_best_decompositions_from_static_analyser(codebase, "fsplit")
-    # merge_analyser_csvs(codebases_of_interest)
+    # merge_analyser_csvs(codebases)
 
-    # console.rule("Getting tsr")
-    # tsr_data = tsr.get_data(codebases_of_interest)
+    console.rule("Getting tsr")
+    tsr_data = tsr.get_data(codebases)
 
     # TODO: fazer um método para processar um analyser em especifico...
 
-    # convert_single_analyser_json("qt-functionality-split", "quizzes-tutor-functionality")
+    # convert_single_analyser_json("cloudunit", "cloudunit")
 
 
 if __name__ == "__main__":

@@ -42,8 +42,7 @@ def get_logical_couplings(history: History, repo: Repository):
         if len(filenames) > 1:
             for pair in findsubsets(filenames, 2):
                 update_coupling(str(repo.get_file_id(pair[0])), str(repo.get_file_id(pair[1])), logical_coupling)
-            couplings.append(filenames)
-    return couplings
+    return logical_coupling
 
 
 def coupling_to_json(logical_coupling, repo: Repository) -> dict:
@@ -100,43 +99,41 @@ def remove_non_entities_files(all_files_logical_coupling_json, codebase_repo):
     return non_entities_coupling
 
 
-def collect_data(codebases):
-    for i, codebase in enumerate(codebases):
+def collect_data(codebases, force_recollection):
+    for i, codebase_data in enumerate(codebases):
+        codebase = codebase_data[0]
+        if codebase != "ExtremeWorld":
+            continue
+        codebase_url = codebase_data[1]
+        codebase_hash = codebase_data[2]
         t0 = time.time()
         print("")
         print(f"[underline]{codebase}[/underline] [{i + 1}/{len(codebases)}]")
 
+        if os.path.isfile(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_commit.json") and not force_recollection:
+            print(":white_circle: Data has been collected and recollection was not requested. Skipping.")
+            continue
+
         print(":white_circle: Parsing history")
-        codebase_repo = Repository(codebase)
+        codebase_repo = Repository(codebase, codebase_url, codebase_hash)
         cutoff_value = 100  # Commits with 5 or more files are ignored
         history = codebase_repo.cleanup_history(cutoff_value)
 
-        print(":white_circle: Getting couplings")
-        all_logical_coupling = get_logical_couplings(history, codebase_repo)
+        print(":white_circle: Getting couplings data")
+        all_files_logical_coupling = get_logical_couplings(history, codebase_repo)
 
-        print(":white_circle: Converting to JSON")
-        # all_files_logical_coupling_json = coupling_to_json(all_logical_coupling, codebase_repo)
-        # all_files_authors_json = authors_to_json(history, codebase_repo)
-        #
-        # entities_logical_coupling_json = remove_non_entities_files(all_files_logical_coupling_json, codebase_repo)
-        # entities_authors_json = {k: v for k, v in all_files_authors_json.items() if k in list(codebase_repo.id_to_entity.keys())}
-        #
-        #
-        # print(":white_circle: Writing")
-        # write_jsons(all_files_logical_coupling_json, entities_logical_coupling_json,
-        #             all_files_authors_json, entities_authors_json, codebase)
-        #
-        # t1 = time.time()
+        print(":white_circle: Getting authors data")
+        all_files_authors = authors_to_json(history, codebase_repo)
+
+        print(":white_circle: Writing")
+        write_jsons(all_files_logical_coupling, all_files_authors, codebase)
+
+        t1 = time.time()
         print(f"[underline]Done in {round(t1-t0, 2)} seconds.[/underline]")
 
 
-def write_jsons(all_files_logical_coupling_json, entities_logical_coupling_json, all_files_authors_json,
-                entities_authors_json, codebase):
-    with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_commit_all.json", "w") as f:
+def write_jsons(all_files_logical_coupling_json, all_files_authors_json, codebase):
+    with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_commit.json", "w") as f:
         json.dump(all_files_logical_coupling_json, f)
-    with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_commit_entities.json", "w") as f:
-        json.dump(entities_logical_coupling_json, f)
-    with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_author_all.json", "w") as f:
+    with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_author.json", "w") as f:
         json.dump(all_files_authors_json, f)
-    with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_author_entities.json", "w") as f:
-        json.dump(entities_authors_json, f)

@@ -26,23 +26,23 @@ def compute_average_contributors_per_microservice(decomposition, commit_data, au
             try:
                 contributors_in_this_cluster += authors_data[files[int(file_id)]]
             except KeyError:
-                print(f"{files[int(file_id)]} not found in authors data.")
+                pass
         authors_per_cluster_sum += len(set(contributors_in_this_cluster))
         authors_per_cluster.append(contributors_in_this_cluster)
-
-    return authors_per_cluster_sum / 4
+    return authors_per_cluster_sum / len(decomposition.keys())
 
 
 def contributors_per_microservice(clusters_four_data, author_data, n_clusters):
     authors_per_cluster_sum = 0
     authors_per_cluster = []
+
     for cluster in clusters_four_data['clusters'].keys():
         contributors_in_this_cluster = []
         for file_id in clusters_four_data['clusters'][cluster]:
             try:
                 contributors_in_this_cluster += author_data[str(file_id)]
             except KeyError:
-                print(f"{file_id} not found in authors data.")
+                pass
         authors_per_cluster_sum += len(set(contributors_in_this_cluster))
         authors_per_cluster.append(contributors_in_this_cluster)
 
@@ -53,9 +53,11 @@ def get_all_clusters_files(codebase):
     static_clusters = []
     commit_clusters = []
     both_clusters = []
-    for decomposition in os.listdir(f"{Constants.mono2micro_codebases_root}/{codebase}_all/analyser/cuts/"):
-        decomposition_path = f"{Constants.mono2micro_codebases_root}/{codebase}_all/analyser/cuts/{decomposition}"
+    for decomposition in os.listdir(f"{Constants.mono2micro_codebases_root}/{codebase}/analyser/cuts/"):
+        decomposition_path = f"{Constants.mono2micro_codebases_root}/{codebase}/analyser/cuts/{decomposition}"
         access, write, read, sequence, commit, authors, n_clusters = [int(x) for x in decomposition.replace(".json", "").split(",")]
+        if n_clusters > 10:
+            continue
         if (access > 0 or write > 0 or read > 0 or sequence > 0) and (commit == 0 and authors == 0):
             static_clusters.append((n_clusters, access, write, read, sequence, commit, authors, decomposition_path))
         elif (access == 0 and write == 0 and read == 0 and sequence == 0) and (commit > 0 or authors > 0):
@@ -79,9 +81,10 @@ def get_tsr_data_for_clusters(clusters_files, source, author_data, codebase):
 
 def get_data(codebases_of_interest):
     data = []
-    for codebase in codebases_of_interest:
+    for codebase_data in codebases_of_interest:
+        codebase = codebase_data[0]
         print(f":white_circle: Evaluating {codebase}")
-        with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_author_all.json", "r") as f:
+        with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_author.json", "r") as f:
             author_data = json.load(f)
 
         print(f"  :white_circle: Getting cluster information")
@@ -98,5 +101,5 @@ def get_data(codebases_of_interest):
         # print(data)
 
     data = pd.DataFrame(data, columns=["codebase_name", "tsr", "n_clusters", "access", "write", "read", "sequence", "commit", "authors", "type"])
-    data.to_csv(f"{Constants.codebases_data_output_directory}/tsr-result.csv", index=False)
+    data.to_csv(f"{Constants.codebases_data_output_directory}/tsrResultCorrectMetrics.csv", index=False)
     return data

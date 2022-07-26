@@ -9,6 +9,7 @@ rich = "~=12.4.4"
 scipy = "~=1.8.1"
 funcy = "~=1.17"
 matplotlib = "*"
+gitpython = "*"
 
 [dev-packages]
 

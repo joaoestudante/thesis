@@ -1,9 +1,11 @@
 import json
 import os
 from functools import cached_property
+from git import Repo
 
 from collector.history import History
 from helpers.constants import Constants
+from rich import print
 
 
 class Repository:
@@ -11,13 +13,24 @@ class Repository:
     Represents a repository. Allows for access to history and information of files, as well as clone.
     """
 
-    def __init__(self, codebase_name):
+    def __init__(self, codebase_name, url, last_hash):
         self.name = codebase_name
+        self.url = url
+        self.last_hash = last_hash
+        self.clone()
         self.history = History(codebase_name)
         self.no_refactors_history = None
 
     def clone(self):
-        raise NotImplemented
+        if not os.path.isdir(Constants.codebases_root_directory):
+            os.mkdir(Constants.codebases_root_directory)
+        if os.path.isdir(f"{Constants.codebases_root_directory}/{self.name}"):
+            return
+        print(f"  :white_circle: Cloning {self.name} to {Constants.codebases_root_directory}/{self.name}")
+        repo = Repo.clone_from(self.url, f"{Constants.codebases_root_directory}/{self.name}", no_checkout=True)
+        repo.git.checkout(self.last_hash)
+        print("       :white_circle: Done")
+
 
     def cleanup_history(self, cutoff_value) -> History:
         self.history = self.history.fix_renames().fix_deletes()
