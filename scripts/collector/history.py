@@ -26,6 +26,7 @@ class History:
             except subprocess.CalledProcessError as e:
                 print("Error retrieving history.")
                 print(e.output)
+        self.initial_number_of_commits = len(self.history_df["commit_hash"].unique())
 
     def fix_renames(self) -> History:
         rename_info = self.history_df.loc[self.history_df['change_type'] == "RENAMED"]

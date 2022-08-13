@@ -100,10 +100,9 @@ def remove_non_entities_files(all_files_logical_coupling_json, codebase_repo):
 
 
 def collect_data(codebases, force_recollection):
+    execution_times = []
     for i, codebase_data in enumerate(codebases):
         codebase = codebase_data[0]
-        if codebase != "ExtremeWorld":
-            continue
         codebase_url = codebase_data[1]
         codebase_hash = codebase_data[2]
         t0 = time.time()
@@ -130,6 +129,9 @@ def collect_data(codebases, force_recollection):
 
         t1 = time.time()
         print(f"[underline]Done in {round(t1-t0, 2)} seconds.[/underline]")
+
+        execution_times.append([codebase, round(t1-t0, 2), history.initial_number_of_commits])
+    execution_times_df = pd.DataFrame(execution_times, columns=["Codebase", "Time (s)", "# Initial Commits"]).to_csv(f"{Constants.codebases_data_output_directory}/execution_times.csv", index=False)
 
 
 def write_jsons(all_files_logical_coupling_json, all_files_authors_json, codebase):

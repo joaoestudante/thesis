@@ -68,16 +68,18 @@ def main():
     console = Console()
 
     codebases = []
-    blacklist = ["blended-workflow", "fenixedu-academic", "edition"]
+    # blacklist = ["blended-workflow", "fenixedu-academic", "edition"]
+    blacklist = []
+    whitelist = ["quizzes-tutor", "APMHome"]
     with open(f"{Constants.resources_directory}/codebases.csv", "r") as c:
         reader = csv.reader(c)
         next(reader)
         codebases = [row for row in reader]
     codebases = [c for c in codebases if c[0] not in blacklist]
-    #
-    # console.rule("Running commit collection")
-    # force_recollection = True
-    # collector.collect_data(codebases, force_recollection)
+    # codebases = [c for c in codebases if c[0] in whitelist]
+    console.rule("Running commit collection")
+    force_recollection = True
+    collector.collect_data(codebases, force_recollection)
     # save_best_decompositions_from_static_analyser("fenixedu-academic")
     # codebases_of_interest = ["quizzes-tutor"]
     # # # If the codebases are already created... replace the files
@@ -96,22 +98,22 @@ def main():
     # console.rule("Converting static files to functionality split")
     # fsplit.collect(codebases_of_interest)
     #
-    # console.rule("Creating codebases in Mono2Micro")
+    console.rule("Creating codebases in Mono2Micro")
     # # # codebases_of_interest = ["fenixedu-academic"]
-    # interface.create_codebases(codebases, "")
-    # console.rule("Running static analyser")
+    interface.create_codebases(codebases, "")
+    console.rule("Running static analyser")
     # # print("Total: " + str(len(codebases_of_interest[8:])))
-    # t0 = time.time()
-    # interface.run_analyser(codebases, "")
-    # t1 = time.time()
-    # print(f"Total time: {datetime.timedelta(t1-t0)}")
+    t0 = time.time()
+    interface.run_analyser(codebases, "")
+    t1 = time.time()
+    print(f"Total time: {datetime.timedelta(t1-t0)}")
     # # #
     # #
     # console.rule("Merging csvs")
-    # merge_analyser_csvs(codebases)
+    merge_analyser_csvs(codebases)
 
-    console.rule("Getting tsr")
-    tsr_data = tsr.get_data(codebases)
+    # console.rule("Getting tsr")
+    # tsr_data = tsr.get_data(codebases)
 
     # TODO: fazer um método para processar um analyser em especifico...
 
