@@ -37,3 +37,16 @@ running the analyser without creating a codebase first, or creating a codebase w
 * `resources/`
 
 This is where the data collection files will be saved. 
+
+# Setup
+
+The easiest way to setup this project is with [poetry](https://python-poetry.org/docs/master/). Once Poetry is installed, run `poetry install` on this folder.
+This takes care of all dependencies and management of a virtual environment. Alternatively, you could always do `pip3 install -r requirements.txt`, which installs the project's dependencies for the global python environment.
+
+Afterwards, configure the Constants. Go to `helpers/constants.py`, and change the `mono2micro_codebases_root` variable. It should point to where the Mono2Micro repository was cloned. The remaining variables can also be changed - for example, if you want to specify the cloning directory, change the variable `codebases_root_directory`. Otherwise, the necessary folders and structures are automagically created.
+
+
+# Running the project
+
+Just do `poetry run python run_thesis_tasks.py` on the root directory (the same place where this readme is located).
+
