@@ -36,7 +36,7 @@ running the analyser without creating a codebase first, or creating a codebase w
 
 * `resources/`
 
-This is where the data collection files will be saved. 
+  This is where the data collection files will be saved. 
 
 # Setup
 
