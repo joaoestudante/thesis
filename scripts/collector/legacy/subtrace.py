@@ -14,7 +14,7 @@ Script to identify subtraces of functionalities using commit logs.
 import os
 from collections import Counter, defaultdict
 
-from collector.functionalitysplit import parse_full_functionalities
+from collector.legacy.functionalitysplit import parse_full_functionalities
 from collector.repository import Repository
 from helpers.constants import Constants
 

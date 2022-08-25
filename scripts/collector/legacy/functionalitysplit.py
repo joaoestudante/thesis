@@ -9,11 +9,10 @@ The algorithm is like so:
     * Cluster those entities in the best way possible (according to scipy's fcluster method)
     * Create a new functionality for each of the generated clusters
 """
-from collections import defaultdict, Counter
+from collections import Counter
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-from collector.commitsplit import parse_functionalities
 from collector.repository import Repository
 from collector.service import get_logical_couplings
 from helpers.constants import Constants

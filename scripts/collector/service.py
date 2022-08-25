@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import time
+from io import StringIO
 
 import pandas as pd
 from rich import print
@@ -49,16 +51,6 @@ def coupling_to_json(logical_coupling, repo: Repository) -> dict:
     """
     Organizes pairs that appear together, and stores the information in a dictionary ready to be saved as a
     .json file.
-    The dictionary has the following format:
-    ```
-    {
-       'A' : [B, C, C],
-       'B' : [A, C],
-       'Z' : [F, G],
-       ...
-    }
-    ```
-    It can be read as: File 'A' has changed once with file B, and twice with file C.
     """
 
     logical_coupling_data = defaultdict(list)
@@ -115,7 +107,7 @@ def collect_data(codebases, force_recollection):
 
         print(":white_circle: Parsing history")
         codebase_repo = Repository(codebase, codebase_url, codebase_hash)
-        cutoff_value = 100  # Commits with 5 or more files are ignored
+        cutoff_value = 100
         history = codebase_repo.cleanup_history(cutoff_value)
 
         print(":white_circle: Getting couplings data")
@@ -131,7 +123,8 @@ def collect_data(codebases, force_recollection):
         print(f"[underline]Done in {round(t1-t0, 2)} seconds.[/underline]")
 
         execution_times.append([codebase, round(t1-t0, 2), history.initial_number_of_commits])
-    execution_times_df = pd.DataFrame(execution_times, columns=["Codebase", "Time (s)", "# Initial Commits"]).to_csv(f"{Constants.codebases_data_output_directory}/execution_times.csv", index=False)
+    execution_times_df = pd.DataFrame(execution_times, columns=["Codebase", "Time (s)", "# Initial Commits"])\
+        .to_csv(f"{Constants.resources_directory}/execution_times.csv", index=False)
 
 
 def write_jsons(all_files_logical_coupling_json, all_files_authors_json, codebase):
@@ -139,3 +132,23 @@ def write_jsons(all_files_logical_coupling_json, all_files_authors_json, codebas
         json.dump(all_files_logical_coupling_json, f)
     with open(f"{Constants.codebases_data_output_directory}/{codebase}/{codebase}_author.json", "w") as f:
         json.dump(all_files_authors_json, f)
+
+
+def codebases_statistics(codebases):
+    data = []
+    for i, codebase_data in enumerate(codebases):
+        command = f"{Constants.project_root}/collector/commit_log_script.sh {Constants.codebases_root_directory}/{codebase_data[0]}"
+        try:
+            output = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
+            history_df = pd.read_csv(StringIO(output), sep=";", names=[
+                'commit_hash', 'change_type', 'previous_filename', 'filename', 'timestamp', 'author'])
+        except subprocess.CalledProcessError as e:
+            print("Error retrieving history.")
+            print(e.output)
+        print(codebase_data[0])
+        with open(f"{Constants.codebases_data_output_directory}/{codebase_data[0]}/{codebase_data[0]}_IDToEntity.json", "r") as e:
+            data.append([codebase_data[0], len(history_df['commit_hash'].unique()), len(history_df['author'].unique()), len(json.load(e).keys())])
+        # print(f"{codebase_data[0]}: {len(history_df['commit_hash'].unique())} commits, {len(history_df['author'].unique())} authors")
+    data = pd.DataFrame(data, columns=["name", "commit", "author", "entities"])
+    data.to_csv(f"{Constants.resources_directory}/counts.csv", index=False)
+    return None
